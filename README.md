@@ -1,5 +1,5 @@
 # ROSA: Routing, Operations, and Sizing for Aircraft
-![ROSA Logo](./assets/rose.png)
+![ROSA Logo](rose.png)
 
 This tool is designed to bridge the critical gap between market analysis and aircraft sizing, with a focus on the next generation of innovative aircraft configurations.
 
