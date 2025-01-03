@@ -5,7 +5,6 @@
 ROSA is designed to bridge the gap between market analysis and aircraft sizing, with a focus on the next generation of innovative aircraft configurations.
 
 ## Features
-<div style="clear: both;"></div>
 - **Aircraft Sizing**: Tailored tools for sizing aircraft across different configurations.
 - **Routing Optimization**: Advanced algorithms for efficient route planning and network design.
 - **Market Analysis Integration**: Combine market demand analysis with technical aircraft specifications.
