@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 import openmdao.api as om
+from scipy.optimize import brentq
 from typing import Any
 
 
 class ComputeCruiseRange(om.ExplicitComponent):
     """
-    Computes the total range of a hybrid-electric aircraft based on the Breguet range equation.
+    Computes either the range given epsilon, or epsilon given a target range.
     """
 
     def setup(self):
@@ -24,8 +25,6 @@ class ComputeCruiseRange(om.ExplicitComponent):
                       desc="Propulsive efficiency")
         self.add_input("eta_g", val=1.0, units=None,
                       desc="Generator efficiency")
-        self.add_input("epsilon", val=1.0, units=None,
-                      desc="Fraction of energy provided by batteries")
         self.add_input("cb", val=1.0, units="J/kg",
                       desc="Battery specific energy")
         self.add_input("cp", val=1.0, units="1/s",
@@ -36,85 +35,108 @@ class ComputeCruiseRange(om.ExplicitComponent):
                       desc="Payload weight")
         self.add_input("f_we", val=1.0, units=None,
                       desc="Empty weight fraction")
+        self.add_input("target_range", val=1.0, units="m",
+                      desc="Target range")
 
-        # Add output
-        self.add_output("range_total", units="m",
-                       desc="Total range")
+        # Add outputs
+        self.add_output("epsilon", val=0.3, units=None,
+                       desc="Required hybridization ratio")
 
         # Declare partials
-        self.declare_partials("range_total", ["epsilon"], method="exact")
-        self.declare_partials("range_total", ["cl", "cd", "eta_i", "eta_m", "eta_p", 
-                                            "eta_g", "cb", "cp", "wt0_max", "w_pay", 
-                                            "f_we"], method="fd")
+        self.declare_partials('epsilon', ['cl', 'cd', 'eta_i', 'eta_m', 'eta_p', 
+                                        'eta_g', 'cb', 'cp', 'wt0_max', 'w_pay', 
+                                        'f_we', 'target_range'])
 
     def compute(self, inputs, outputs):
-        """Compute the total range."""
-        g = 9.806
+        """Compute epsilon for target range using root finding."""
         
-        # Get inputs
-        cl = inputs["cl"]
-        cd = inputs["cd"]
-        eta_i = inputs["eta_i"]
-        eta_m = inputs["eta_m"]
-        eta_p = inputs["eta_p"]
-        eta_g = inputs["eta_g"]
-        epsilon = inputs["epsilon"]
-        cb = inputs["cb"]
-        cp = inputs["cp"]
-        wt0_max = inputs["wt0_max"]
-        w_pay = inputs["w_pay"]
-        f_we = inputs["f_we"]
-
-        outputs["range_total"] = (
-            (cl / cd) * (eta_i * eta_m * eta_p / g)
-            * np.log(
-                ((epsilon + (1 - epsilon) * cb * cp) * wt0_max)
-                / (epsilon * wt0_max + (1 - epsilon) * cb * cp * (w_pay + f_we * wt0_max))
-            ) * eta_g / cp
-            + (epsilon * cb * ((1 - f_we) * wt0_max - w_pay))
-            / (epsilon * wt0_max + (1 - epsilon) * cb * cp * (w_pay + f_we * wt0_max))
-        )
+        def range_residual(epsilon):
+            """Compute difference between actual and target range."""
+            g = 9.806
+            
+            # Calculate actual range for given epsilon
+            range_actual = (
+                (inputs["cl"] / inputs["cd"]) * (inputs["eta_i"] * inputs["eta_m"] * inputs["eta_p"] / g)
+                * np.log(
+                    ((epsilon + (1 - epsilon) * inputs["cb"] * inputs["cp"]) * inputs["wt0_max"])
+                    / (epsilon * inputs["wt0_max"] + (1 - epsilon) * inputs["cb"] * inputs["cp"] 
+                       * (inputs["w_pay"] + inputs["f_we"] * inputs["wt0_max"]))
+                ) * inputs["eta_g"] / inputs["cp"]
+                + (epsilon * inputs["cb"] * ((1 - inputs["f_we"]) * inputs["wt0_max"] - inputs["w_pay"]))
+                / (epsilon * inputs["wt0_max"] + (1 - epsilon) * inputs["cb"] * inputs["cp"] 
+                   * (inputs["w_pay"] + inputs["f_we"] * inputs["wt0_max"]))
+            )
+            
+            return range_actual - inputs["target_range"]
+        
+        # Find epsilon that gives target range (between 0 and 1)
+        outputs["epsilon"] = brentq(range_residual, 0.001, 0.999)
 
     def compute_partials(self, inputs, partials):
-        """Compute the partial derivative of range_total with respect to epsilon."""
+        """Compute partial derivatives using implicit function theorem."""
+        g = 9.806
+        epsilon = self._compute_epsilon(inputs)  # Current converged epsilon
+        
+        # Get partial of residual with respect to epsilon
+        dR_deps = self._compute_range_partial_epsilon(inputs, epsilon)
+        
+        # Compute partials for each input
+        for input_name in inputs:
+            # Compute partial of residual with respect to input using finite difference
+            inp_val = inputs[input_name]
+            delta = 1e-6 * (1.0 + abs(inp_val))
+            
+            # Perturbed inputs
+            inputs_plus = inputs.copy()
+            inputs_plus[input_name] += delta
+            
+            # Compute residual difference
+            R1 = self._compute_range(inputs, epsilon)
+            R2 = self._compute_range(inputs_plus, epsilon)
+            
+            dR_dx = (R2 - R1) / delta
+            
+            # Apply implicit function theorem: deps/dx = -(dR/deps)^-1 * dR/dx
+            partials['epsilon', input_name] = -dR_dx / dR_deps
+
+    def _compute_epsilon(self, inputs):
+        """Helper method to compute epsilon using root finding."""
+        def range_residual(eps):
+            return self._compute_range(inputs, eps) - inputs["target_range"]
+        
+        return brentq(range_residual, 0.001, 0.999)
+
+    def _compute_range(self, inputs, epsilon):
+        """Helper method to compute range for given inputs and epsilon."""
         g = 9.806
         
-        # Get inputs
-        cl = inputs["cl"]
-        cd = inputs["cd"]
-        eta_i = inputs["eta_i"]
-        eta_m = inputs["eta_m"]
-        eta_p = inputs["eta_p"]
-        eta_g = inputs["eta_g"]
-        epsilon = inputs["epsilon"]
-        cb = inputs["cb"]
-        cp = inputs["cp"]
-        wt0_max = inputs["wt0_max"]
-        w_pay = inputs["w_pay"]
-        f_we = inputs["f_we"]
-        
-        # Terms for readability
-        term1 = (cl/cd) * (eta_i * eta_m * eta_p / g) * (eta_g / cp)
-        term2 = wt0_max * (1 - cb * cp)
-        term3 = w_pay + f_we * wt0_max
-        term4 = epsilon * wt0_max + (1 - epsilon) * cb * cp * term3
-        
-        # Derivative of the logarithmic term
-        d_log = (wt0_max * cb * cp * term3) / (term4 * (epsilon * wt0_max + (1 - epsilon) * cb * cp * term3))
-        
-        # Derivative of the second term
-        d_second = (cb * ((1-f_we) * wt0_max - w_pay) * wt0_max * (1 - cb * cp)) / (term4 ** 2)
-        
-        partials["range_total", "epsilon"] = term1 * d_log + d_second
+        return (
+            (inputs["cl"] / inputs["cd"]) * (inputs["eta_i"] * inputs["eta_m"] * inputs["eta_p"] / g)
+            * np.log(
+                ((epsilon + (1 - epsilon) * inputs["cb"] * inputs["cp"]) * inputs["wt0_max"])
+                / (epsilon * inputs["wt0_max"] + (1 - epsilon) * inputs["cb"] * inputs["cp"] 
+                   * (inputs["w_pay"] + inputs["f_we"] * inputs["wt0_max"]))
+            ) * inputs["eta_g"] / inputs["cp"]
+            + (epsilon * inputs["cb"] * ((1 - inputs["f_we"]) * inputs["wt0_max"] - inputs["w_pay"]))
+            / (epsilon * inputs["wt0_max"] + (1 - epsilon) * inputs["cb"] * inputs["cp"] 
+               * (inputs["w_pay"] + inputs["f_we"] * inputs["wt0_max"]))
+        )
+
+    def _compute_range_partial_epsilon(self, inputs, epsilon):
+        """Helper method to compute partial of range with respect to epsilon."""
+        delta = 1e-6 * (1.0 + abs(epsilon))
+        R1 = self._compute_range(inputs, epsilon)
+        R2 = self._compute_range(inputs, epsilon + delta)
+        return (R2 - R1) / delta
 
 
 if __name__ == "__main__":
     import openmdao.api as om
-
-    # Build the model
+    
+    # Create problem
     prob = om.Problem()
     
-    # Create independent variable component with units
+    # Create independent variable component
     ivc = om.IndepVarComp()
     ivc.add_output("cl", val=0.5, units=None)
     ivc.add_output("cd", val=0.03, units=None)
@@ -122,20 +144,34 @@ if __name__ == "__main__":
     ivc.add_output("eta_m", val=0.95, units=None)
     ivc.add_output("eta_p", val=0.85, units=None)
     ivc.add_output("eta_g", val=0.95, units=None)
-    ivc.add_output("epsilon", val=0.3, units=None)
     ivc.add_output("cb", val=400*3600, units="J/kg")
     ivc.add_output("cp", val=0.3/60/60/1000, units="1/s")
     ivc.add_output("wt0_max", val=5500.0*9.806, units="N")
     ivc.add_output("w_pay", val=200.0*9.806, units="N")
     ivc.add_output("f_we", val=0.6, units=None)
-
-    # Add components to model
-    prob.model.add_subsystem('init_vals', ivc, promotes_outputs=["*"])
-    prob.model.add_subsystem('cruise_range', ComputeCruiseRange(), promotes_inputs=["*"])
-
-    # Setup and run problem
+    ivc.add_output("target_range", val=1000000.0, units="m")
+    
+    # Build the model
+    model = prob.model
+    model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
+    model.add_subsystem('cruise_analysis', ComputeCruiseRange(), promotes_inputs=["*"])
+    
+    # Setup problem
     prob.setup()
+    
+    # Generate N2 diagram
+    om.n2(prob)
+    
+    # Run the model
     prob.run_model()
-
-    # Print the outputs
-    print('Range:', prob.get_val('cruise_range.range_total')[0]/1000, 'km') 
+    
+    # Print results
+    print('\nResults for 1000 km range:')
+    print('Required hybridization ratio (epsilon):', prob.get_val('cruise_analysis.epsilon')[0])
+    
+    # Try another target range (1500 km)
+    prob.set_val('target_range', 1500000.0, units='m')
+    prob.run_model()
+    
+    print('\nResults for 1500 km range:')
+    print('Required hybridization ratio (epsilon):', prob.get_val('cruise_analysis.epsilon')[0]) 

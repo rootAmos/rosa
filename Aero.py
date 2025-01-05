@@ -1,83 +1,100 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 import numpy as np
-from gemseo.core.discipline import Discipline
+import openmdao.api as om
+from typing import Any
 
-if TYPE_CHECKING:
-    from gemseo.typing import StrKeyMapping
 
-class Aero(Discipline):
-    def __init__(self) -> None:
-        super().__init__()
-        self.input_grammar.update_from_names([
-            "AR",           # Aspect Ratio - wingspan^2 / wing area
-            "S",            # Wing Area [m^2]
-            "e",            # Oswald Number
-            "vel",          # Velocity [m/s]
-            "rho",          # Air Density [kg/m^3]
-            "weight",       # Aircraft Weight [N]
-            "CD0"          # Parasitic Drag Coefficient
-        ])
+class Aerodynamics(om.ExplicitComponent):
+    """
+    Computes aerodynamic coefficients for the aircraft.
+    """
+    
+    def setup(self):
+        # Add inputs
+        self.add_input("mach", val=0.1, units=None,
+                      desc="Mach number")
+        self.add_input("alpha", val=0.0, units="rad",
+                      desc="Angle of attack")
+        self.add_input("s_ref", val=1.0, units="m**2",
+                      desc="Reference wing area")
+        self.add_input("ar_w", val=1.0, units=None,
+                      desc="Wing aspect ratio")
+        self.add_input("e_w", val=1.0, units=None,
+                      desc="Wing Oswald efficiency factor")
+        self.add_input("cd0", val=0.02, units=None,
+                      desc="Parasitic drag coefficient")
         
-        self.output_grammar.update_from_names([
-            "CL",          # Lift Coefficient
-            "CD",          # Total Drag Coefficient
-            "drag",        # Total Drag Force [N]
-            "lift"         # Total Lift Force [N]
-        ])
-
-    def _run(self, input_data: StrKeyMapping) -> StrKeyMapping | None:
-        # Get inputs
-        AR = input_data["AR"]        # Aspect Ratio
-        S = input_data["S"]          # Wing Area [m^2]
-        e = input_data["e"]          # Oswald Number
-        vel = input_data["vel"]      # Velocity [m/s]
-        rho = input_data["rho"]      # Air Density [kg/m^3]
-        weight = input_data["weight"] # Aircraft Weight [N]
-        CD0 = input_data["CD0"]      # Parasitic Drag Coefficient
-
-        # Calculate CL
-        CL = (2 * weight) / (rho * vel**2 * S)
-
-        # Calculate CDi and total CD
-        CDi = CL**2 / (np.pi * e * AR)
-        CD = CD0 + CDi
-
-        # Calculate forces
-        q = 0.5 * rho * vel**2      # Dynamic pressure
-        drag = q * S * CD
-        lift = q * S * CL
-
-        return {
-            "CL": CL,
-            "CD": CD,
-            "drag": drag,
-            "lift": lift
-        }
+        # Add outputs
+        self.add_output("cl", units=None,
+                       desc="Lift coefficient")
+        self.add_output("cd", units=None,
+                       desc="Drag coefficient")
+        
+        # Declare partials
+        self.declare_partials("cl", ["alpha"], method="exact")
+        self.declare_partials("cd", ["cl", "ar_w", "e_w", "cd0"], method="exact")
+        
+    def compute(self, inputs, outputs):
+        """Compute lift and drag coefficients."""
+        alpha = inputs["alpha"]
+        ar_w = inputs["ar_w"]
+        e_w = inputs["e_w"]
+        cd0 = inputs["cd0"]
+        
+        # Compute lift coefficient (assuming linear region)
+        outputs["cl"] = 2 * np.pi * alpha
+        
+        # Compute drag coefficient
+        outputs["cd"] = cd0 + (outputs["cl"] ** 2) / (np.pi * ar_w * e_w)
+        
+    def compute_partials(self, inputs, partials):
+        """Compute partial derivatives analytically."""
+        alpha = inputs["alpha"]
+        ar_w = inputs["ar_w"]
+        e_w = inputs["e_w"]
+        
+        # Partial of cl with respect to alpha
+        partials["cl", "alpha"] = 2 * np.pi
+        
+        # Partial of cd with respect to inputs
+        cl = 2 * np.pi * alpha
+        partials["cd", "cl"] = 2 * cl / (np.pi * ar_w * e_w)
+        partials["cd", "ar_w"] = -(cl ** 2) / (np.pi * (ar_w ** 2) * e_w)
+        partials["cd", "e_w"] = -(cl ** 2) / (np.pi * ar_w * (e_w ** 2))
+        partials["cd", "cd0"] = 1.0
 
 
 if __name__ == "__main__":
-    # Create instance of the discipline
-    aero_discipline = Aero()
-
-    # Create test input data
-    test_inputs = {
-        "AR": 8.0,         # Aspect Ratio
-        "S": 10.0,         # Wing Area [m^2]
-        "e": 0.85,         # Oswald Number
-        "vel": 20.0,       # Velocity [m/s]
-        "rho": 1.225,      # Air Density [kg/m^3]
-        "weight": 1000.0,  # Aircraft Weight [N]
-        "CD0": 0.015      # Parasitic Drag Coefficient
-    }
-
-    # Execute discipline
-    result = aero_discipline._run(test_inputs)
+    import openmdao.api as om
     
-    print("Aero Test Results:")
-    print(f"Input conditions: {test_inputs}")
-    print(f"Lift Coefficient (CL): {result['CL']:.3f}")
-    print(f"Drag Coefficient (CD): {result['CD']:.3f}")
-    print(f"Lift force: {result['lift']:.2f} N")
-    print(f"Drag force: {result['drag']:.2f} N") 
+    # Create problem
+    prob = om.Problem()
+    
+    # Create independent variable component
+    ivc = om.IndepVarComp()
+    ivc.add_output("mach", val=0.1)
+    ivc.add_output("alpha", val=np.radians(2.0), units="rad")
+    ivc.add_output("s_ref", val=25.0, units="m**2")
+    ivc.add_output("ar_w", val=10.0)
+    ivc.add_output("e_w", val=0.85)
+    ivc.add_output("cd0", val=0.02)
+    
+    # Build the model
+    model = prob.model
+    model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
+    model.add_subsystem('aero', Aerodynamics(), promotes_inputs=["*"])
+    
+    # Setup problem
+    prob.setup()
+    
+    # Run the model
+    prob.run_model()
+    
+    # Print results
+    print('\nAerodynamic Results:')
+    print('CL:', prob.get_val('aero.cl')[0])
+    print('CD:', prob.get_val('aero.cd')[0])
+    
+    # Check partials
+    prob.check_partials(compact_print=True) 
