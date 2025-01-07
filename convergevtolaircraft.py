@@ -3,9 +3,10 @@ from __future__ import annotations
 import numpy as np
 import openmdao.api as om
 from typing import Any
-from hoverenergy import HoverEnergyGroup
+from computehover import ComputeHoverForce
+from computehover import ComputeHoverPowerEnergy
 from convergecruiserange import ConvergeCruiseRange
-from computeweights import AircraftWeight
+from computeweightfractions import AircraftWeight
 
 
 class ConvergeAircraft(om.Group):
@@ -14,7 +15,7 @@ class ConvergeAircraft(om.Group):
     """
     
     def initialize(self):
-        self.options.declare('fuel_type', default='JET_A1', values=['JET_A1', 'JET_A', 'JP_8'],
+        self.options.declare('fuel_type', default='JET_A1', values=['JET_A1', 'JET_A', 'JP_8','LNG'],
                            desc='Type of fuel to use')
     
     def setup(self):
@@ -23,7 +24,7 @@ class ConvergeAircraft(om.Group):
         
         # Add hover power and energy calculation
         cycle.add_subsystem("hover",
-                          HoverEnergyGroup(),
+                          ComputeHoverPowerEnergy(),
                           promotes_inputs=["mass_aircraft", "hover_time",
                                          "epsilon_hover", "n_lift_motors",
                                          "n_generators", "eta_motor", "eta_cable",

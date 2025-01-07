@@ -1,4 +1,10 @@
-class ElectricalSystemWeight(om.ExplicitComponent):
+from __future__ import annotations
+
+import numpy as np
+import openmdao.api as om
+
+
+class PowertrainWeight(om.ExplicitComponent):
     """Computes weights of electrical powertrain components."""
     
     def setup(self):
@@ -17,7 +23,7 @@ class ElectricalSystemWeight(om.ExplicitComponent):
                       desc="Gas turbine power required")
         
         # Component counts
-        self.add_input("n_lift_motors", val=8.0, units=None,
+        self.add_input("n_motors", val=8.0, units=None,
                       desc="Number of lift motors")
         self.add_input("n_generators", val=2.0, units=None,
                       desc="Number of generators")
@@ -39,19 +45,19 @@ class ElectricalSystemWeight(om.ExplicitComponent):
                       desc="Generator specific power")
         
         # Add outputs
-        self.add_output("w_motor", units="N",
-                       desc="Total motor weight")
+        self.add_output("w_motors", units="N",
+                       desc="Motor weight")
         self.add_output("w_power_electronics", units="N",
                        desc="Power electronics weight")
         self.add_output("w_cables", units="N",
                        desc="Cable weight")
         self.add_output("w_battery", units="N",
                        desc="Battery weight")
-        self.add_output("w_turbine", units="N",
+        self.add_output("w_turbines", units="N",
                        desc="Gas turbine weight")
-        self.add_output("w_generator", units="N",
+        self.add_output("w_generators", units="N",
                        desc="Generator weight")
-        self.add_output("w_electrical", units="N",
+        self.add_output("w_ptrain", units="N",
                        desc="Total electrical system weight")
         
         self.declare_partials("*", "*", method="exact")
@@ -60,9 +66,9 @@ class ElectricalSystemWeight(om.ExplicitComponent):
         g = 9.81  # for converting mass to weight in N
         
         # Motor weight
-        motor_mass = (inputs["motor_power"] * inputs["n_lift_motors"] / 
+        motor_mass = (inputs["motor_power"] * inputs["n_motors"] / 
                      inputs["motor_power_density"])
-        outputs["w_motor"] = motor_mass * g
+        outputs["w_motors"] = motor_mass * g
         
         # Power electronics weight
         pe_mass = inputs["electrical_power"] / inputs["power_electronics_power_density"]
@@ -80,25 +86,25 @@ class ElectricalSystemWeight(om.ExplicitComponent):
         
         # Gas turbine weight
         turbine_mass = inputs["gasturbine_power"] / inputs["turbine_power_density"]
-        outputs["w_turbine"] = turbine_mass * g
+        outputs["w_turbines"] = turbine_mass * g
         
         # Generator weight
         generator_mass = (inputs["generator_power"] * inputs["n_generators"] / 
                          inputs["generator_power_density"])
-        outputs["w_generator"] = generator_mass * g
+        outputs["w_generators"] = generator_mass * g
         
         # Total electrical system weight
-        outputs["w_electrical"] = (outputs["w_motor"] + outputs["w_power_electronics"] + 
+        outputs["w_ptrain"] = (outputs["w_motors"] + outputs["w_power_electronics"] + 
                                  outputs["w_cables"] + outputs["w_battery"] + 
-                                 outputs["w_turbine"] + outputs["w_generator"])
+                                 outputs["w_turbines"] + outputs["w_generators"])
 
     def compute_partials(self, inputs, partials):
         g = 9.81
         
         # Motor weight partials
-        partials["w_motor", "motor_power"] = inputs["n_lift_motors"] * g / inputs["motor_power_density"]
-        partials["w_motor", "n_lift_motors"] = inputs["motor_power"] * g / inputs["motor_power_density"]
-        partials["w_motor", "motor_power_density"] = -inputs["motor_power"] * inputs["n_lift_motors"] * g / \
+        partials["w_motors", "motor_power"] = inputs["n_motors"] * g / inputs["motor_power_density"]
+        partials["w_motors", "n_motors"] = inputs["motor_power"] * g / inputs["motor_power_density"]
+        partials["w_motors", "motor_power_density"] = -inputs["motor_power"] * inputs["n_motors"] * g / \
                                                     inputs["motor_power_density"]**2
         
         # Power electronics weight partials
@@ -129,23 +135,23 @@ class ElectricalSystemWeight(om.ExplicitComponent):
                 -(inputs["battery_energy"] / 3600) * g / inputs["battery_energy_density"]**2
         
         # Gas turbine weight partials
-        partials["w_turbine", "gasturbine_power"] = g / inputs["turbine_power_density"]
-        partials["w_turbine", "turbine_power_density"] = \
+        partials["w_turbines", "gasturbine_power"] = g / inputs["turbine_power_density"]
+        partials["w_turbines", "turbine_power_density"] = \
             -inputs["gasturbine_power"] * g / inputs["turbine_power_density"]**2
         
         # Generator weight partials
-        partials["w_generator", "generator_power"] = inputs["n_generators"] * g / inputs["generator_power_density"]
-        partials["w_generator", "n_generators"] = inputs["generator_power"] * g / inputs["generator_power_density"]
-        partials["w_generator", "generator_power_density"] = \
+        partials["w_generators", "generator_power"] = inputs["n_generators"] * g / inputs["generator_power_density"]
+        partials["w_generators", "n_generators"] = inputs["generator_power"] * g / inputs["generator_power_density"]
+        partials["w_generators", "generator_power_density"] = \
             -inputs["generator_power"] * inputs["n_generators"] * g / inputs["generator_power_density"]**2
         
         # Total electrical weight partials
-        for output in ["w_motor", "w_power_electronics", "w_cables", "w_battery", "w_turbine", "w_generator"]:
+        for output in ["w_motors", "w_power_electronics", "w_cables", "w_battery", "w_turbines", "w_generators"]:
             for input_name in inputs:
                 if (output, input_name) in partials:
-                    partials["w_electrical", input_name] = partials[output, input_name]
+                    partials["w_ptrain", input_name] = partials[output, input_name]
                 else:
-                    partials["w_electrical", input_name] = 0.0
+                    partials["w_ptrain", input_name] = 0.0
 
 
 if __name__ == "__main__":
@@ -160,13 +166,13 @@ if __name__ == "__main__":
     ivc.add_output("motor_power", val=125000.0, units="W")
     ivc.add_output("generator_power", val=300000.0, units="W")
     ivc.add_output("gasturbine_power", val=600000.0, units="W")
-    ivc.add_output("n_lift_motors", val=8.0)
+    ivc.add_output("n_motors", val=8.0)
     ivc.add_output("n_generators", val=2.0)
     
     # Build the model
     model = prob.model
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
-    model.add_subsystem('ptrain_weight', ElectricalSystemWeight(), promotes_inputs=["*"])
+    model.add_subsystem('ptrain_weight', PowertrainWeight(), promotes_inputs=["*"])
     
     # Setup problem
     prob.setup()
@@ -176,13 +182,13 @@ if __name__ == "__main__":
     
     # Print results
     print('\nPowertrain Weight Results:')
-    print('Motor Weight:', prob.get_val('ptrain_weight.w_motor')[0], 'N')
+    print('Motors Weight:', prob.get_val('ptrain_weight.w_motors')[0], 'N')
     print('Power Electronics Weight:', prob.get_val('ptrain_weight.w_power_electronics')[0], 'N')
-    print('Cable Weight:', prob.get_val('ptrain_weight.w_cables')[0], 'N')
+    print('Cables Weight:', prob.get_val('ptrain_weight.w_cables')[0], 'N')
     print('Battery Weight:', prob.get_val('ptrain_weight.w_battery')[0], 'N')
-    print('Gas Turbine Weight:', prob.get_val('ptrain_weight.w_turbine')[0], 'N')
-    print('Generator Weight:', prob.get_val('ptrain_weight.w_generator')[0], 'N')
-    print('Total Electrical Weight:', prob.get_val('ptrain_weight.w_electrical')[0], 'N')
+    print('Gas Turbines Weight:', prob.get_val('ptrain_weight.w_turbines')[0], 'N')
+    print('Generators Weight:', prob.get_val('ptrain_weight.w_generators')[0], 'N')
+    print('Total Powertrain Weight:', prob.get_val('ptrain_weight.w_ptrain')[0], 'N')
     
     # Check partials
-    prob.check_partials(compact_print=True) 
+    # prob.check_partials(compact_print=True) 

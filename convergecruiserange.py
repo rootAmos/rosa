@@ -116,10 +116,8 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         wto_max = inputs["wto_max"]
         w_pay = inputs["w_pay"]
         f_we = inputs["f_we"]
-
-
-        # Intermediate terms for derivatives (dr/depsilon)
-
+        
+        # Intermediate terms for readability
         aero_term = (cl/cd) * (eta_i * eta_m * eta_p / g) * (eta_g / cp)
         denom = epsilon * wto_max + (1 - epsilon) * cb * cp * (w_pay + f_we * wto_max)
         num = (epsilon + (1 - epsilon) * cb * cp) * wto_max
@@ -133,161 +131,40 @@ class ConvergeCruiseRange(om.ImplicitComponent):
                    (wto_max - cb * cp * (w_pay + f_we * wto_max))) / (denom ** 2)
         partials["epsilon", "epsilon"] = aero_term * d_log + d_second
         
-        
         # With respect to target_range
         partials["epsilon", "target_range"] = -1.0
-
-
         
         # With respect to cl
-        partials["epsilon", "cl"] = (
-            (eta_i * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            eta_g * np.log(
-                wto_max * (epsilon - cb * cp * (epsilon - 1)) /
-                (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            ) / cp 
-            - cb * epsilon * (w_pay + wto_max * (f_we - 1)) /
-            (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-        )
-
+        partials["epsilon", "cl"] = (1/cd) * (eta_i * eta_m * eta_p / g) * (eta_g / cp) * np.log(num/denom)
         
         # With respect to cd
-        partials["epsilon", "cd"] = (
-            (cl * eta_i * eta_m * eta_p) /
-            (cd ** 2 * g)
-        ) * (
-            eta_g * np.log(
-                wto_max * (epsilon - cb * cp * (epsilon - 1)) /
-                (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            ) / cp 
-            - cb * epsilon * (w_pay + wto_max * (f_we - 1)) /
-            (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-        )
-
+        partials["epsilon", "cd"] = -(cl/(cd**2)) * (eta_i * eta_m * eta_p / g) * (eta_g / cp) * np.log(num/denom)
         
         # With respect to efficiencies
-        partials["epsilon", "eta_i"]  = (
-            (cl * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            eta_g * np.log(
-                wto_max * (epsilon - cb * cp * (epsilon - 1)) /
-                (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            ) / cp 
-            - cb * epsilon * (w_pay + wto_max * (f_we - 1)) /
-            (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-        )
-
+        partials["epsilon", "eta_i"] = (cl/cd) * (eta_m * eta_p / g) * (eta_g / cp) * np.log(num/denom)
+        partials["epsilon", "eta_m"] = (cl/cd) * (eta_i * eta_p / g) * (eta_g / cp) * np.log(num/denom)
+        partials["epsilon", "eta_p"] = (cl/cd) * (eta_i * eta_m / g) * (eta_g / cp) * np.log(num/denom)
+        partials["epsilon", "eta_g"] = (cl/cd) * (eta_i * eta_m * eta_p / g) * (1 / cp) * np.log(num/denom)
         
-        partials["epsilon", "eta_m"] = (
-            (cl * eta_i * eta_p) /
-            (cd * g)
-        ) * (
-            eta_g * np.log(
-                wto_max * (epsilon - cb * cp * (epsilon - 1)) /
-                (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            ) / cp 
-            - cb * epsilon * (w_pay + wto_max * (f_we - 1)) /
-            (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-        )
-
-
-        partials["epsilon", "eta_p"] = (
-            (cl * eta_i * eta_m) /
-            (cd * g)
-        ) * (
-            eta_g * np.log(
-                wto_max * (epsilon - cb * cp * (epsilon - 1)) /
-                (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            ) / cp 
-        - (
-            cb * epsilon * (w_pay + wto_max * (f_we - 1)) /
-            (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            )
-        )
+        # With respect to energy parameters
+        d_cb = ((1 - epsilon) * cp * wto_max / num - 
+                (1 - epsilon) * cp * (w_pay + f_we * wto_max) / denom)
+        partials["epsilon", "cb"] = aero_term * d_cb + epsilon * ((1-f_we) * wto_max - w_pay) / denom
         
-        partials["epsilon", "eta_g"] = (
-            (cl * eta_i * eta_m * eta_p * np.log(
-                wto_max * (epsilon - cb * cp * (epsilon - 1)) /
-                (epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1))
-            )) /
-            (cd * cp * g)
-        )
+        d_cp = ((1 - epsilon) * cb * wto_max / num - 
+                (1 - epsilon) * cb * (w_pay + f_we * wto_max) / denom)
+        partials["epsilon", "cp"] = aero_term * d_cp - aero_term * np.log(num/denom) / cp
         
-        # Intermediate terms for derivatives (dr/dcb)
-        sigma1_drdcb = epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1)
-        sigma2_drdcb = epsilon - cb * cp * (epsilon - 1)
-        sigma3_drdcb = w_pay + wto_max * (f_we - 1)
-
-        partials["epsilon", "cb"] = (
-            (cl * eta_i * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            (epsilon * sigma3_drdcb / sigma1_drdcb) 
-            + eta_g * (
-                (cp * wto_max * (epsilon - 1) / sigma1_drdcb) 
-                - (cp * wto_max * (w_pay + f_we * wto_max) * sigma2_drdcb / (sigma1_drdcb**2))
-            ) * sigma1_drdcb / (cp * wto_max * sigma2_drdcb)
-            + (cb * cp * epsilon * (w_pay + wto_max * (f_we - 1)) * sigma3_drdcb * (epsilon - 1) / (sigma1_drdcb**2))
-        )
+        # With respect to weights
+        d_wto = (1/wto_max + (epsilon + (1-epsilon) * cb * cp) / num - 
+                (epsilon + (1-epsilon) * cb * cp * f_we) / denom)
+        partials["epsilon", "wto_max"] = aero_term * d_wto + epsilon * cb * (1-f_we) / denom
         
+        d_wpay = -(1-epsilon) * cb * cp / denom
+        partials["epsilon", "w_pay"] = aero_term * d_wpay - epsilon * cb / denom
         
-        # Intermediate terms for derivatives (dr/dcp)
-        sigma1_drdcp = epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1)
-        sigma2_drdcp = epsilon - cb * cp * (epsilon - 1)
-
-        partials["epsilon", "cp"] = (
-            (cl * eta_i * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            eta_g * np.log(wto_max * sigma2_drdcp / sigma1_drdcp) / (cp**2)
-            + eta_g * (wto_max * (epsilon - 1) / sigma1_drdcp - cb * wto_max * (w_pay + f_we * wto_max) * sigma2_drdcp / (sigma1_drdcp**2)) * sigma1_drdcp / (cp * wto_max * sigma2_drdcp)
-            + cb**2 * epsilon * (w_pay + wto_max * (f_we - 1)) * (epsilon - 1) / (sigma1_drdcp**2)
-        )
-        
- 
-        
-        # Intermediate terms for derivatives (dr/dwto)
-        sigma1_drdwto = epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1)
-        sigma2_drdwto = epsilon - cb * cp * (epsilon - 1)
-
-        partials["epsilon", "wto_max"] = (
-            (cl * eta_i * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            (
-                cb * epsilon * (epsilon - cb * cp * f_we * (epsilon - 1)) * (w_pay + wto_max * (f_we - 1)) / (sigma1_drdwto ** 2)
-                - cb * epsilon * (f_we - 1) / sigma1_drdwto
-            )
-            + eta_g * (
-                (sigma2_drdwto / sigma1_drdwto) 
-                - wto_max * (epsilon - cb * cp * f_we * (epsilon - 1)) * sigma2_drdwto / (sigma1_drdwto ** 2)
-            ) * sigma1_drdwto / (cp * wto_max * sigma2_drdwto)
-        )
-        
-
-        # Intermediate terms for derivatives (dr/dwpay)
-        sigma1_drdwpay = epsilon * wto_max - cb * cp * (w_pay + f_we * wto_max) * (epsilon - 1)
-
-        partials["epsilon", "w_pay"] = (
-            (cl * eta_i * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            cb * epsilon / sigma1_drdwpay
-            - cb * eta_g * (epsilon - 1) / sigma1_drdwpay
-            + cb**2 * cp * epsilon * (w_pay + wto_max * (f_we - 1)) * (epsilon - 1) / (sigma1_drdwpay**2)
-        )
-        
-        partials["epsilon", "f_we"] = (
-            (cl * eta_i * eta_m * eta_p) /
-            (cd * g)
-        ) * (
-            cb * epsilon * wto_max / sigma1_drdwpay
-            - cb * eta_g * wto_max * (epsilon - 1) / sigma1_drdwpay
-            + cb**2 * cp * epsilon * wto_max * (w_pay + wto_max * (f_we - 1)) * (epsilon - 1) / (sigma1_drdwpay**2)
-        )
+        d_fwe = -(1-epsilon) * cb * cp * wto_max / denom
+        partials["epsilon", "f_we"] = aero_term * d_fwe - epsilon * cb * wto_max / denom
 
 
 if __name__ == "__main__":
@@ -320,7 +197,7 @@ if __name__ == "__main__":
     prob.setup()
     
     # Generate N2 diagram
-    om.n2(prob)
+    # om.n2(prob)
     
     # Run the model
     prob.run_model()
@@ -335,3 +212,22 @@ if __name__ == "__main__":
     
     print('\nResults for 1500 km range:')
     print('Required hybridization ratio (epsilon):', prob.get_val('cruise_analysis.epsilon')[0]) 
+
+   # Get other parameters
+    inputs = {}
+    inputs["cl"] = prob.get_val('cruise_analysis.cl')[0]
+    inputs["cd"] = prob.get_val('cruise_analysis.cd')[0]
+    inputs["eta_i"] = prob.get_val('cruise_analysis.eta_i')[0]
+    inputs["eta_m"] = prob.get_val('cruise_analysis.eta_m')[0]
+    inputs["eta_p"] = prob.get_val('cruise_analysis.eta_p')[0]
+    inputs["eta_g"] = prob.get_val('cruise_analysis.eta_g')[0]
+    inputs["cb"] = prob.get_val('cruise_analysis.cb')[0]
+    inputs["cp"] = prob.get_val('cruise_analysis.cp')[0]
+    inputs["wto_max"] = prob.get_val('cruise_analysis.wto_max')[0]
+    inputs["w_pay"] = prob.get_val('cruise_analysis.w_pay')[0]
+    inputs["f_we"] = prob.get_val('cruise_analysis.f_we')[0]
+    epsilon = prob.get_val('cruise_analysis.epsilon')[0]
+
+    # Verify the solution by computing range with the solved epsilon
+    achieved_range = ConvergeCruiseRange._compute_range(None, inputs, epsilon)/1000
+    print(f'Back calculated range: {achieved_range:.1f} km')

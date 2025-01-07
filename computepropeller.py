@@ -1,153 +1,148 @@
-from __future__ import annotations
-
-import numpy as np
+import numpy as np  
 import openmdao.api as om
-from typing import Any
 
 
-class PropellerPerformance(om.ExplicitComponent):
+
+class Propeller(om.ExplicitComponent):
     """
-    Computes propeller performance using blade element momentum theory.
-    """
+    Compute the power required for a propeller.
+
+    References
+    [1] GA Guddmundsson. "General Aviation Aircraft Design".
     
-    def setup(self):
-        # Add inputs
-        self.add_input("thrust", val=1.0, units="N",
-                      desc="Required thrust")
-        self.add_input("velocity", val=1.0, units="m/s",
-                      desc="Flight velocity")
-        self.add_input("rho", val=1.225, units="kg/m**3",
-                      desc="Air density")
-        self.add_input("diameter", val=2.0, units="m",
-                      desc="Propeller diameter")
-        
-        # Add outputs
-        self.add_output("power", units="W",
-                       desc="Power required")
-        self.add_output("efficiency", units=None,
-                       desc="Propeller efficiency")
-        
-        # Declare partials
-        self.declare_partials("*", "*", method="exact")
-        
-    def compute(self, inputs, outputs):
-        # Extract inputs
-        T = inputs["thrust"]
-        V = inputs["velocity"]
-        rho = inputs["rho"]
-        D = inputs["diameter"]
-        
-        # Disk area
-        A = np.pi * (D/2)**2
-        
-        # Compute induced velocity using momentum theory
-        if V == 0:  # Hover condition
-            vi = np.sqrt(T / (2 * rho * A))
-            P = T * vi
-            eta = 0.0  # Efficiency undefined in hover
-        else:  # Forward flight
-            # Solve for induced velocity using quadratic formula
-            a = 1
-            b = 2 * V
-            c = -(T / (2 * rho * A))
-            vi = (-b + np.sqrt(b**2 - 4*a*c)) / (2*a)
-            
-            # Total velocity at disk
-            V_disk = np.sqrt((V + vi)**2 + vi**2)
-            
-            # Power and efficiency
-            P = T * V_disk
-            eta = T * V / P
-        
-        outputs["power"] = P
-        outputs["efficiency"] = eta
-        
-    def compute_partials(self, inputs, partials):
-        # Extract inputs
-        T = inputs["thrust"]
-        V = inputs["velocity"]
-        rho = inputs["rho"]
-        D = inputs["diameter"]
-        A = np.pi * (D/2)**2
-        
-        if V == 0:  # Hover condition
-            vi = np.sqrt(T / (2 * rho * A))
-            
-            # Partial derivatives for hover
-            partials["power", "thrust"] = 1.5 * vi
-            partials["power", "velocity"] = 0
-            partials["power", "rho"] = -T * vi / (2 * rho)
-            partials["power", "diameter"] = -T * vi / D
-            
-            partials["efficiency", "thrust"] = 0
-            partials["efficiency", "velocity"] = 0
-            partials["efficiency", "rho"] = 0
-            partials["efficiency", "diameter"] = 0
-            
-        else:  # Forward flight
-            # Compute induced velocity
-            a = 1
-            b = 2 * V
-            c = -(T / (2 * rho * A))
-            vi = (-b + np.sqrt(b**2 - 4*a*c)) / (2*a)
-            
-            # Total velocity at disk
-            V_disk = np.sqrt((V + vi)**2 + vi**2)
-            
-            # Partial of vi with respect to inputs
-            dvi_dT = -1 / (4 * rho * A * np.sqrt(V**2 + T/(2*rho*A)))
-            dvi_dV = -1 + V / np.sqrt(V**2 + T/(2*rho*A))
-            dvi_drho = T / (4 * rho**2 * A * np.sqrt(V**2 + T/(2*rho*A)))
-            dvi_dD = T / (4 * rho * A * D * np.sqrt(V**2 + T/(2*rho*A)))
-            
-            # Partial of V_disk with respect to vi
-            dVdisk_dvi = ((V + vi) + vi) / V_disk
-            
-            # Power partials
-            partials["power", "thrust"] = V_disk + T * dVdisk_dvi * dvi_dT
-            partials["power", "velocity"] = T * ((V + vi) / V_disk + dVdisk_dvi * dvi_dV)
-            partials["power", "rho"] = T * dVdisk_dvi * dvi_drho
-            partials["power", "diameter"] = T * dVdisk_dvi * dvi_dD
-            
-            # Efficiency partials
-            P = T * V_disk
-            deta_dT = V * (P - T * partials["power", "thrust"]) / P**2
-            deta_dV = (P - T * V * partials["power", "velocity"]) / P**2
-            deta_drho = -T * V * partials["power", "rho"] / P**2
-            deta_dD = -T * V * partials["power", "diameter"] / P**2
-            
-            partials["efficiency", "thrust"] = deta_dT
-            partials["efficiency", "velocity"] = deta_dV
-            partials["efficiency", "rho"] = deta_drho
-            partials["efficiency", "diameter"] = deta_dD
+    """
 
+    def setup(self):
+
+        # Inputs    
+        self.add_input('d_blade', val=1, desc='blade diameter', units='m')
+        self.add_input('d_hub', val=0.5, desc='hub diameter', units='m')
+        self.add_input('rho', val= 1, desc='air density', units='kg/m**3')
+        self.add_input('thrust_total', val= 1, desc='total aircraft thrust required', units='N')
+        self.add_input('n_motors', val=2, desc='number of engines', units=None)
+        self.add_input('vel', val= 1, desc='true airspeed', units='m/s')
+        self.add_input('eta_prop', val=1, desc='propeller efficiency', units=None) 
+        self.add_input('eta_hover', val=1, desc='hover efficiency', units=None)
+
+        # Outputs
+        self.add_output('shaft_power_unit', val= 1, desc='power required per engine', units='W')
+        self.add_output('eta_prplsv', val= 1, desc='propeller isentropic efficiency', units=None)
+
+    def setup_partials(self):
+        self.declare_partials('shaft_power_unit', 'thrust_total')
+        self.declare_partials('shaft_power_unit', 'vel')
+        self.declare_partials('shaft_power_unit', 'd_blade')
+        self.declare_partials('shaft_power_unit', 'd_hub')
+        self.declare_partials('shaft_power_unit', 'rho')
+        self.declare_partials('shaft_power_unit', 'n_motors')
+        self.declare_partials('shaft_power_unit', 'eta_prop')
+
+    def compute(self, inputs, outputs):
+
+        # Unpack inputs    
+        eta_prop = inputs['eta_prop']
+        d_blade = inputs['d_blade']
+        d_hub = inputs['d_hub']
+        rho = inputs['rho']
+        thrust_total = inputs['thrust_total']
+        n_motors = inputs['n_motors']
+        vel = inputs['vel']
+        eta_hover = inputs['eta_hover']
+
+        diskarea = np.pi * ((d_blade/2)**2 - (d_hub/2)**2)
+
+        thrust_unit = thrust_total / n_motors 
+
+
+        # Compute induced airspeed [1] Eq 15-76
+        v_ind = 0.5 * ( - vel + ( vel**2 + 2*thrust_unit / (0.5 * rho * diskarea) ) **(0.5) )
+
+        # Compute station 3 velocity [1] Eq 15-73
+        v3 = vel + 2 * v_ind
+
+        # Compute propulsive efficiency [1] Eq 15-77
+        eta_prplsv = np.where(vel>1e-9, 2 / (1 + v3/ (1e-9 + vel)), eta_hover)   
+
+        # Compute the power required [1] Eq 15-75
+        propulsive_power_unit = thrust_unit * vel  + thrust_unit ** 1.5/ np.sqrt(2 * rho * diskarea)
+   
+
+        # Compute the power required [1] Eq 15-78
+        shaft_power_unit = propulsive_power_unit / eta_prop / eta_prplsv
+
+        # Pack outputs
+        outputs['shaft_power_unit'] = shaft_power_unit
+        outputs['eta_prplsv'] = eta_prplsv
+
+    def compute_partials(self, inputs, J):  
+
+        # Unpack inputs
+        vel = inputs['vel']
+        d_blade = inputs['d_blade']
+        d_hub = inputs['d_hub']
+        rho = inputs['rho']
+        thrust_total = inputs['thrust_total']
+        n_motors = inputs['n_motors']
+        eta_prop = inputs['eta_prop']
+
+
+        diskarea = np.pi * ((d_blade/2)**2 - (d_hub/2)**2)
+        d_blade_d_diskarea = np.pi * d_blade / 2
+        d_hub_d_diskarea = -np.pi * d_hub / 2
+        thrust_unit = thrust_total / n_motors  
+
+        # Compute induced airspeed [1] Eq 15-76
+        v_ind = 0.5 * ( - vel + ( vel**2 + 2*thrust_unit / (0.5 * rho * diskarea) ) **(0.5) )
+
+        # Compute station 3 velocity [1] Eq 15-73
+        v3 = vel + 2 * v_ind
+
+        # Compute propulsive efficiency [1] Eq 15-77
+        eta_prplsv = 2 / (1 + v3/ (1e-9 + vel))   
+
+        propulsive_power_unit = thrust_unit * vel  + thrust_unit ** 1.5/ np.sqrt(2 * rho * diskarea)
+
+
+        J['shaft_power_unit', 'thrust_total'] =  (vel + 1.5 * thrust_total**0.5 / np.sqrt(2 * rho * diskarea)) / n_motors / eta_prop / eta_prplsv
+        J['shaft_power_unit', 'vel'] =  thrust_unit / eta_prop / eta_prplsv
+        J['shaft_power_unit', 'd_blade'] = thrust_unit ** 1.5 * (-0.5)*  (2 * rho *diskarea)**(-1.5) * d_blade_d_diskarea/ eta_prop / eta_prplsv
+        J['shaft_power_unit', 'd_hub'] = thrust_unit ** 1.5 * (-0.5)*  (2 * rho *diskarea)**(-1.5) * d_hub_d_diskarea/ eta_prop / eta_prplsv
+        J['shaft_power_unit', 'rho'] =  thrust_unit ** 1.5 * (-0.5) *  (2 * rho *diskarea)**(-1.5) * ( 2 * diskarea) / eta_prop / eta_prplsv
+        J['shaft_power_unit', 'eta_prop'] =  -propulsive_power_unit / eta_prop**2 / eta_prplsv
+        J['shaft_power_unit', 'n_motors'] =  -thrust_total*vel/ eta_prop / eta_prplsv / n_motors**2  -  1.5 * thrust_unit**0.5  * thrust_total/ n_motors **2 / np.sqrt(2 * rho * diskarea) / eta_prop / eta_prplsv
+        J['shaft_power_unit', 'eta_hover'] =  -propulsive_power_unit / eta_prop / eta_prplsv
 
 if __name__ == "__main__":
-    # Create problem
-    prob = om.Problem()
-    
-    # Create independent variable component
+    import openmdao.api as om
+
+    p = om.Problem()
+    model = p.model
+
     ivc = om.IndepVarComp()
-    ivc.add_output("thrust", val=1000.0, units="N")
-    ivc.add_output("velocity", val=100.0, units="m/s")
-    ivc.add_output("rho", val=1.225, units="kg/m**3")
-    ivc.add_output("diameter", val=2.0, units="m")
-    
-    # Build the model
-    model = prob.model
-    model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
-    model.add_subsystem('propeller', PropellerPerformance(), promotes_inputs=["*"])
-    
-    # Setup problem
-    prob.setup()
-    
-    # Run the model
-    prob.run_model()
-    
-    # Print results
-    print('\nPropeller Performance Results:')
-    print('Power Required:', prob.get_val('propeller.power')[0]/1000, 'kW')
-    print('Efficiency:', prob.get_val('propeller.efficiency')[0])
-    
-    # Check partials
-    prob.check_partials(compact_print=True)
+    ivc.add_output('d_blade', 1.5, units='m')
+    ivc.add_output('d_hub', 0.5, units='m')
+    ivc.add_output('rho', 1.225, units='kg/m**3')
+    ivc.add_output('thrust_total', 5000, units='N')
+    ivc.add_output('n_motors', 2, units=None)
+    ivc.add_output('vel', 100, units='m/s')
+    ivc.add_output('eta_prop', 0.9 , units=None)
+    ivc.add_output('eta_hover', 0.5, units=None)
+
+    model.add_subsystem('Indeps', ivc, promotes_outputs=['*'])
+    model.add_subsystem('Propeller', Propeller(), promotes_inputs=['*'])
+
+    model.nonlinear_solver = om.NewtonSolver()
+    model.linear_solver = om.DirectSolver()
+
+    model.nonlinear_solver.options['iprint'] = 2
+    model.nonlinear_solver.options['maxiter'] = 200
+    model.nonlinear_solver.options['solve_subsystems'] = True
+    model.nonlinear_solver.linesearch = om.ArmijoGoldsteinLS()
+
+    p.setup()
+
+    #om.n2(p)
+    p.run_model()
+
+    print('shaft_power_unit = ', p['Propeller.shaft_power_unit']/1000, 'kW')
+    print('eta_prplsv = ', p['Propeller.eta_prplsv'])
