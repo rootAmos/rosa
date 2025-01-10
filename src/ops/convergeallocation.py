@@ -121,9 +121,9 @@ if __name__ == "__main__":
 
     ivc = om.IndepVarComp()
     ivc.add_output('price_per_pax', val= 50 * np.ones([n_rt, n_ac]), desc='Ticket price per passenger for each route')
-    ivc.add_output('pax_per_flt', val= 60 * np.ones([n_rt, n_ac]), desc='Passengers per flight for each route')
+    ivc.add_output('pax_per_flt', val= 19 * np.ones([n_rt, n_ac]), desc='Passengers per flight for each route')
     ivc.add_output('cost_per_flt', val= 1000 * np.ones([n_rt, n_ac]), desc='Total operating cost (excluding fuel) per flight for each route')
-    ivc.add_output('flt_per_day', val= 10 * np.ones([n_rt, n_ac]), desc='Number of flights per day for each route')
+    ivc.add_output('flt_per_day', val= 99 * np.ones([n_rt, n_ac]), desc='Number of flights per day for each route')
     ivc.add_output('cost_fuel', val= 10 * np.ones([n_rt, n_ac]), units='1/kg', desc='Fuel cost per flight for each route')    
     ivc.add_output('fuel_flt', val= 100 * np.ones([n_rt, n_ac]), units='kg', desc='Fuel burn per flight for each aircraft')
     ivc.add_output('time_per_flt', val= 2 * np.ones([n_rt, n_ac]), units='h', desc='Block time per flight for each route')
@@ -155,18 +155,18 @@ if __name__ == "__main__":
 
 
     # Optimization
-    prob.driver = om.ScipyOptimizeDriver()
-    prob.driver.options['optimizer'] = 'SLSQP'
-    prob.driver.options['tol'] = 1e-6
-    prob.driver.options['maxiter'] = 100
+    prob.driver = om.pyOptSparseDriver()
+    prob.driver.options['optimizer'] = 'IPOPT'
+    #prob.driver.options['tol'] = 1e-6
+    #prob.driver.options['maxiter'] = 100
 
     # Add design variables
     prob.model.add_design_var('flt_per_day', lower=0.0, upper=100.0)
     prob.model.add_design_var('pax_per_flt', lower=0.0, upper=300.0)
 
     # Add design variables, objective, and constraints
-    prob.model.add_constraint('allocation_problem.total_usage_margin', upper=0, ref = 1e-3)
-    prob.model.add_constraint('allocation_problem.total_pax_margin', upper=0, ref = 1e-3)
+    prob.model.add_constraint('allocation_problem.total_usage_margin', upper=0,  ref = 1e2)
+    prob.model.add_constraint('allocation_problem.total_pax_margin', upper=0, ref = 1e2)
     prob.model.add_objective('allocation_problem.profit', scaler=-1e4)  # Maximizing profit
 
     # Add recording of iterations
