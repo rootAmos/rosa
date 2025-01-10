@@ -27,14 +27,14 @@ class ConvergeAircraft(om.Group):
                           ComputeHoverPowerEnergy(),
                           promotes_inputs=["mass_aircraft", "hover_time",
                                          "epsilon_hover", "n_lift_motors",
-                                         "n_generators", "eta_motor", "eta_cable",
+                                         "n_gens", "eta_motor", "eta_cable",
                                          "eta_electronics", "eta_generator",
                                          "eta_gasturbine", "rho"])
         
         # Add cruise range convergence
         cycle.add_subsystem("cruise",
                           ConvergeCruiseRange(fuel_type=self.options['fuel_type']),
-                          promotes_inputs=["battery_energy_density"])
+                          promotes_inputs=["bat_energy_density"])
         
         # Add weight computation
         cycle.add_subsystem("weights",
@@ -42,8 +42,8 @@ class ConvergeAircraft(om.Group):
                           promotes_outputs=["w_struct"])
         
         # Connect hover outputs to cruise and weights
-        cycle.connect("hover.battery_energy", "cruise.battery_energy")
-        cycle.connect("hover.battery_power", ["weights.battery_power", "cruise.battery_power"])
+        cycle.connect("hover.bat_energy", "cruise.bat_energy")
+        cycle.connect("hover.bat_power", ["weights.bat_power", "cruise.bat_power"])
         cycle.connect("hover.electrical_power", "weights.electrical_power")
         cycle.connect("hover.motor_power", "weights.motor_power")
         cycle.connect("hover.generator_power", "weights.generator_power")
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     
     # Component counts
     indep.add_output("n_lift_motors", val=8.0)
-    indep.add_output("n_generators", val=2.0)
+    indep.add_output("n_gens", val=2.0)
     
     # Efficiencies
     indep.add_output("eta_motor", val=0.95)
@@ -92,8 +92,8 @@ if __name__ == "__main__":
     # Environmental conditions
     indep.add_output("rho", val=1.225, units="kg/m**3")
     
-    # Battery characteristics
-    indep.add_output("battery_energy_density", val=200.0, units="W*h/kg")
+    # bat characteristics
+    indep.add_output("bat_energy_density", val=200.0, units="W*h/kg")
     
     # Add convergence group
     prob.model.add_subsystem("converge",
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     print("\nAircraft Sizing Results:")
     print("Final MTOM:", prob.get_val("converge.w_struct")[0]/9.81, "kg")
     print("Hover Power Required:", prob.get_val("converge.hover.electrical_power")[0]/1000, "kW")
-    print("Battery Energy:", prob.get_val("converge.hover.battery_energy")[0]/3.6e6, "kWh")
+    print("bat Energy:", prob.get_val("converge.hover.bat_energy")[0]/3.6e6, "kWh")
     print("Fuel Weight:", prob.get_val("converge.cruise.fuel_weight.w_fuel")[0]/9.81, "kg")
     print("Empty Weight Fraction:", prob.get_val("converge.weights.empty_weight_fraction")[0])
     

@@ -9,7 +9,7 @@ class WingWeight(om.ExplicitComponent):
     """Computes wing weight based on Raymer's equations."""
     
     def setup(self):
-        self.add_input("w_mtow", val=1.0, units="lbm",
+        self.add_input("w_mtow", val=1.0, units="lbf",
                       desc="Maximum takeoff weight")
         self.add_input("n_ult", val=1.0, units=None,
                       desc="Ultimate load factor")
@@ -26,7 +26,7 @@ class WingWeight(om.ExplicitComponent):
         self.add_input("lambda_w", val=1.0, units=None,
                       desc="Wing taper ratio")
         
-        self.add_output("w_wing", units="lbm",
+        self.add_output("w_wing", units="lbf",
                        desc="Wing weight")
         
         self.declare_partials("*", "*", method="fd")
@@ -62,7 +62,7 @@ class HorizontalTailWeight(om.ExplicitComponent):
         # Add inputs
         self.add_input('n_ult', val=3.8, units=None,
                       desc='Ultimate load factor')
-        self.add_input('w_mtow', val=1000.0, units='lbm',
+        self.add_input('w_mtow', val=1000.0, units='lbf',
                       desc='Takeoff gross weight')
         self.add_input('q_cruise', val=100.0, units='lbf/ft**2',
                       desc='Dynamic pressure at cruise')
@@ -78,7 +78,7 @@ class HorizontalTailWeight(om.ExplicitComponent):
                       desc='Horizontal tail taper ratio')
         
         # Add output
-        self.add_output('w_htail', units='lbm',
+        self.add_output('w_htail', units='lbf',
                        desc='Horizontal tail weight')
         
         self.declare_partials('*', '*', method='fd')
@@ -115,7 +115,7 @@ class VerticalTailWeight(om.ExplicitComponent):
                       desc='Fraction of tail area relative to vertical tail')
         self.add_input('n_ult', val=3.8, units=None,
                       desc='Ultimate load factor')
-        self.add_input('w_mtow', val=1000.0, units='lbm',
+        self.add_input('w_mtow', val=1000.0, units='lbf',
                       desc='Takeoff gross weight')
         self.add_input('q_cruise', val=100.0, units='lbf/ft**2',
                       desc='Dynamic pressure at cruise')
@@ -131,7 +131,7 @@ class VerticalTailWeight(om.ExplicitComponent):
                       desc='Vertical tail taper ratio')
         
         # Add output
-        self.add_output('w_vtail', units='lbm',
+        self.add_output('w_vtail', units='lbf',
                        desc='Vertical tail weight')
         
         self.declare_partials('*', '*', method='fd')
@@ -164,12 +164,12 @@ class ElectricalSystemWeight(om.ExplicitComponent):
     """Computes electrical system weight using Raymer/USAF equation."""
     
     def setup(self):
-        self.add_input("w_fuel_system", val=100.0, units="lbm",
+        self.add_input("w_fuel_system", val=100.0, units="lbf",
                       desc="Fuel system weight")
-        self.add_input("w_avionics", val=100.0, units="lbm",
+        self.add_input("w_avionics", val=100.0, units="lbf",
                       desc="Avionics system weight")
         
-        self.add_output("w_electrical", units="lbm",
+        self.add_output("w_electrical", units="lbf",
                        desc="Electrical system weight")
         
         self.declare_partials("*", "*", method="fd")
@@ -185,10 +185,10 @@ class FurnishingsWeight(om.ExplicitComponent):
     """Computes furnishings weight using Raymer's equation."""
     
     def setup(self):
-        self.add_input("w_mtow", val=2000.0, units="lbm",
+        self.add_input("w_mtow", val=2000.0, units="lbf",
                       desc="Takeoff gross weight")
         
-        self.add_output("w_furnishings", units="lbm",
+        self.add_output("w_furnishings", units="lbf",
                        desc="Furnishings weight")
         
         self.declare_partials("*", "*", method="fd")
@@ -199,34 +199,16 @@ class FurnishingsWeight(om.ExplicitComponent):
         outputs["w_furnishings"] = 0.0582 * w_mtow - 65
         
 
-class InstalledTurbineWeight(om.ExplicitComponent):
-    """Computes installed turbine weight using Raymer's equation."""
-    
-    def setup(self):
-        self.add_input("w_turbine", val=500.0, units="lbm",
-                      desc="Weight of single turbine")
-        self.add_input("n_turbine", val=2.0, units=None,
-                      desc="Number of turbines")
-        
-        self.add_output("w_turbines", units="lbm",
-                       desc="Total installed turbine engines weight")
-        
-        self.declare_partials("*", "*", method="fd")
-        
-    def compute(self, inputs, outputs):
-        w_turbine = inputs["w_turbine"]
-        n_turbine = inputs["n_turbine"]
-        
-        outputs["w_turbines"] = 2.575 * w_turbine**0.922 * n_turbine
+
     
 class AvionicsWeight(om.ExplicitComponent):
     """Computes avionics system weight using Raymer's equation."""
     
     def setup(self):
-        self.add_input("w_uav", val=100.0, units="lbm",
+        self.add_input("w_uav", val=100.0, units="lbf",
                       desc="Uninstalled avionics weight")
         
-        self.add_output("w_avionics", units="lbm",
+        self.add_output("w_avionics", units="lbf",
                        desc="Installed avionics system weight")
         
         self.declare_partials("*", "*", method="fd")
@@ -247,10 +229,10 @@ class FlightControlWeight(om.ExplicitComponent):
                       desc="Wingspan")
         self.add_input("n_ult", val=3.8, units=None,
                       desc="Ultimate load factor")
-        self.add_input("w_mtow", val=2000.0, units="lbm",
+        self.add_input("w_mtow", val=2000.0, units="lbf",
                       desc="Takeoff gross weight")
         
-        self.add_output("w_fc_sys", units="lbm",
+        self.add_output("w_fc_sys", units="lbf",
                        desc="Flight control system weight")
         
         self.declare_partials("*", "*", method="fd")
@@ -272,21 +254,7 @@ class FlightControlWeight(om.ExplicitComponent):
         
 
                       
-class TurbineWeight(om.ExplicitComponent):
-    """Computes gas turbine weight using empirical equation."""
-    
-    def setup(self):
-        self.add_input("p_max", val=1000.0, units="hp",
-                      desc="Maximum engine power")
-        
-        self.add_output("w_turbine", units="lbm",
-                       desc="turbine engine weight")
-        
-        self.declare_partials("*", "*", method="fd")
-        
-    def compute(self, inputs, outputs):
-        p_max = inputs["p_max"]
-        outputs["w_turbine"] = 71.65 + 0.3658 * p_max
+
         
 
 class FuselageWeight(om.ExplicitComponent):
@@ -345,99 +313,6 @@ class LandingGearWeight(om.ExplicitComponent):
         outputs["w_lg"] = 0.095 * (w_dg ** 0.768) * (n_l ** 0.409) * \
                          (l_m ** 0.252) * 9.81
 
-
-class NacelleWeight(om.ExplicitComponent):
-    """Computes nacelle weight based on Raymer's equations."""
-    
-    def setup(self):
-        self.add_input("w_motors", val=1.0, units="N",
-                      desc="Motor weight")
-        self.add_input("w_propellers", val=1.0, units="N",
-                      desc="Propeller weight")
-        
-        self.add_output("w_nacelles", units="N",
-                       desc="Nacelles weight")
-        
-        self.declare_partials("*", "*", method="fd")
-        
-    def compute(self, inputs, outputs):
-
-        w_engine = inputs["w_motors"] + inputs["w_propellers"]
-        
-        outputs["w_nacelles"] = 0.6 * w_engine  * 9.81
-
-class FuelSystemWeight(om.ExplicitComponent):
-    """Computes fuel system weight using Raymer's equation."""
-    
-    def setup(self):
-        self.add_input("Q_tot", val=100.0, units="galUS",
-                      desc="Total fuel quantity")
-        self.add_input("Q_int", val=80.0, units="galUS",
-                      desc="Internal fuel quantity")
-        self.add_input("N_TANK", val=2.0, units=None,
-                      desc="Number of fuel tanks")
-        self.add_input("N_ENG", val=2.0, units=None,
-                      desc="Number of engines")
-        
-        self.add_output("w_fuel_system", units="lbm",
-                       desc="Fuel system weight")
-        
-        self.declare_partials("*", "*", method="exact")
-        
-    def compute(self, inputs, outputs):
-        Q_tot = inputs["Q_tot"]
-        Q_int = inputs["Q_int"]
-        N_TANK = inputs["N_TANK"]
-        N_ENG = inputs["N_ENG"]
-        
-        outputs["w_fuel_system"] = (
-            2.49 
-            * Q_tot**0.726 
-            * (Q_tot / (Q_tot + Q_int))**0.363 
-            * N_TANK**0.242 
-            * N_ENG**0.157
-        )
-        
-
-class EngineWeight(om.ExplicitComponent):
-    """Computes engine weight based on power."""
-    
-    def setup(self):
-        self.add_input("p_to", val=1.0, units="W",
-                      desc="Takeoff power")
-        
-        self.add_output("w_engine", units="N",
-                       desc="Engine weight")
-        
-        self.declare_partials("*", "*", method="fd")
-        
-    def compute(self, inputs, outputs):
-        p_to = inputs["p_to"] / 1000  # Convert to kW
-        outputs["w_engine"] = 0.686 * (p_to ** 0.93) * 9.81
-
-
-class PropellerWeight(om.ExplicitComponent):
-    """Computes propeller weight."""
-    
-    def setup(self):
-        self.add_input("n_p", val=1.0, units=None,
-                      desc="Number of propellers")
-        self.add_input("d_p", val=1.0, units="m",
-                      desc="Propeller diameter")
-        self.add_input("p_to", val=1.0, units="W",
-                      desc="Takeoff power per propeller")
-        
-        self.add_output("w_prop", units="N",
-                       desc="Propeller weight")
-        
-        self.declare_partials("*", "*", method="fd")
-        
-    def compute(self, inputs, outputs):
-        n_p = inputs["n_p"]
-        d_p = inputs["d_p"]
-        p_to = inputs["p_to"] / 1000  # Convert to kW
-        
-        outputs["w_prop"] = 0.108 * n_p * (d_p ** 2.5) * (p_to ** 0.37) * 9.81
 
 
 class SystemsWeight(om.ExplicitComponent):

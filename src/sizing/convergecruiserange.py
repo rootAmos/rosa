@@ -25,7 +25,7 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         self.add_input("eta_g", val=1.0, units=None,
                       desc="Generator efficiency")
         self.add_input("cb", val=1.0, units="J/kg",
-                      desc="Battery specific energy")
+                      desc="bat specific energy")
         self.add_input("cp", val=1.0, units="1/s",
                       desc="Shaft power specific fuel consumption")
         self.add_input("wto_max", val=1.0, units="N",

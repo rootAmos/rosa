@@ -37,11 +37,11 @@ class ComputeHoverPowerEnergy(om.ExplicitComponent):
         self.add_input("hover_time", val=1.0, units="s",
                       desc="Time spent in hover")
         self.add_input("epsilon_hover", val=1.0, units=None,
-                      desc="Hover power hybridization ratio (battery fraction)")
+                      desc="Hover power hybridization ratio (bat fraction)")
         self.add_input("n_lift_motors", val=1.0, units=None,
                       desc="Number of lift motors")
-        self.add_input("n_generators", val=1.0, units=None,
-                      desc="Number of generators")
+        self.add_input("n_gens", val=1.0, units=None,
+                      desc="Number of gens")
         
         # Efficiencies
         self.add_input("eta_motor", val=1.0, units=None,
@@ -54,10 +54,10 @@ class ComputeHoverPowerEnergy(om.ExplicitComponent):
                       desc="Generator efficiency")
         
         # Add outputs
-        self.add_output("battery_energy", units="J",
-                       desc="Total battery energy required")
-        self.add_output("battery_power", units="W",
-                       desc="Maximum battery power required")
+        self.add_output("bat_energy", units="J",
+                       desc="Total bat energy required")
+        self.add_output("bat_power", units="W",
+                       desc="Maximum bat power required")
         self.add_output("lift_motor_power_unit", units="W",
                        desc="Maximum power per lift motor")
         self.add_output("generator_power_unit", units="W",
@@ -76,18 +76,18 @@ class ComputeHoverPowerEnergy(om.ExplicitComponent):
             inputs["eta_motor"] * inputs["eta_cable"] * inputs["eta_electronics"]
         )
         
-        # Split power between battery and generator based on hybridization ratio
-        battery_power = electrical_power * inputs["epsilon_hover"]
+        # Split power between bat and generator based on hybridization ratio
+        bat_power = electrical_power * inputs["epsilon_hover"]
         generator_power_total = electrical_power * (1 - inputs["epsilon_hover"])
         
-        # Compute battery energy required
-        outputs["battery_energy"] = battery_power * inputs["hover_time"]
+        # Compute bat energy required
+        outputs["bat_energy"] = bat_power * inputs["hover_time"]
         
         # Compute maximum power requirements
-        outputs["battery_power"] = battery_power
+        outputs["bat_power"] = bat_power
         outputs["lift_motor_power_unit"] = shaft_power_total / inputs["n_lift_motors"]
-        outputs["generator_power_unit"] = generator_power_total / inputs["n_generators"]
-        outputs["gasturbine_power_total"] = outputs["generator_power_unit"]  * inputs["n_generators"] / (
+        outputs["generator_power_unit"] = generator_power_total / inputs["n_gens"]
+        outputs["gasturbine_power_total"] = outputs["generator_power_unit"]  * inputs["n_gens"] / (
             inputs["eta_generator"] 
         )
     
@@ -96,34 +96,34 @@ class ComputeHoverPowerEnergy(om.ExplicitComponent):
         propulsive_power = inputs["shaft_power_unit"] * inputs["n_lift_motors"]
         motor_eff = inputs["eta_motor"] * inputs["eta_cable"] * inputs["eta_electronics"]
         electrical_power = propulsive_power / motor_eff
-        battery_power = electrical_power * inputs["epsilon_hover"]
+        bat_power = electrical_power * inputs["epsilon_hover"]
         generator_power_unit = electrical_power * (1 - inputs["epsilon_hover"])
         
-        # Partial derivatives for battery_energy
-        partials["battery_energy", "shaft_power_unit"] = inputs["hover_time"] * inputs["epsilon_hover"] / (
+        # Partial derivatives for bat_energy
+        partials["bat_energy", "shaft_power_unit"] = inputs["hover_time"] * inputs["epsilon_hover"] / (
             motor_eff)
-        partials["battery_energy", "hover_time"] = battery_power
-        partials["battery_energy", "epsilon_hover"] = electrical_power * inputs["hover_time"]
-        partials["battery_energy", "eta_motor"] = -battery_power * inputs["hover_time"] / inputs["eta_motor"]
-        partials["battery_energy", "eta_cable"] = -battery_power * inputs["hover_time"] / inputs["eta_cable"]
-        partials["battery_energy", "eta_electronics"] = -battery_power * inputs["hover_time"] / inputs["eta_electronics"]
-        partials["battery_energy", "eta_generator"] = 0.0
-        partials["battery_energy", "eta_gasturbine"] = 0.0
-        partials["battery_energy", "n_lift_motors"] = 0.0
-        partials["battery_energy", "n_generators"] = 0.0
+        partials["bat_energy", "hover_time"] = bat_power
+        partials["bat_energy", "epsilon_hover"] = electrical_power * inputs["hover_time"]
+        partials["bat_energy", "eta_motor"] = -bat_power * inputs["hover_time"] / inputs["eta_motor"]
+        partials["bat_energy", "eta_cable"] = -bat_power * inputs["hover_time"] / inputs["eta_cable"]
+        partials["bat_energy", "eta_electronics"] = -bat_power * inputs["hover_time"] / inputs["eta_electronics"]
+        partials["bat_energy", "eta_generator"] = 0.0
+        partials["bat_energy", "eta_gasturbine"] = 0.0
+        partials["bat_energy", "n_lift_motors"] = 0.0
+        partials["bat_energy", "n_gens"] = 0.0
         
-        # Partial derivatives for battery_power
-        partials["battery_power", "prop_power"] = inputs["epsilon_hover"] / (
+        # Partial derivatives for bat_power
+        partials["bat_power", "prop_power"] = inputs["epsilon_hover"] / (
             motor_eff)
-        partials["battery_power", "epsilon_hover"] = electrical_power
-        partials["battery_power", "eta_motor"] = -battery_power / inputs["eta_motor"]
-        partials["battery_power", "eta_cable"] = -battery_power / inputs["eta_cable"]
-        partials["battery_power", "eta_electronics"] = -battery_power / inputs["eta_electronics"]
-        partials["battery_power", "hover_time"] = 0.0
-        partials["battery_power", "eta_generator"] = 0.0
-        partials["battery_power", "eta_gasturbine"] = 0.0
-        partials["battery_power", "n_lift_motors"] = 0.0
-        partials["battery_power", "n_generators"] = 0.0
+        partials["bat_power", "epsilon_hover"] = electrical_power
+        partials["bat_power", "eta_motor"] = -bat_power / inputs["eta_motor"]
+        partials["bat_power", "eta_cable"] = -bat_power / inputs["eta_cable"]
+        partials["bat_power", "eta_electronics"] = -bat_power / inputs["eta_electronics"]
+        partials["bat_power", "hover_time"] = 0.0
+        partials["bat_power", "eta_generator"] = 0.0
+        partials["bat_power", "eta_gasturbine"] = 0.0
+        partials["bat_power", "n_lift_motors"] = 0.0
+        partials["bat_power", "n_gens"] = 0.0
         
         # Partial derivatives for lift_motor_power_unit
         partials["lift_motor_power_unit", "prop_power"] = 1.0 / (
@@ -138,18 +138,18 @@ class ComputeHoverPowerEnergy(om.ExplicitComponent):
         partials["lift_motor_power_unit", "eta_electronics"] = 0.0
         partials["lift_motor_power_unit", "eta_generator"] = 0.0
         partials["lift_motor_power_unit", "eta_gasturbine"] = 0.0
-        partials["lift_motor_power_unit", "n_generators"] = 0.0
+        partials["lift_motor_power_unit", "n_gens"] = 0.0
         
         # Partial derivatives for generator_power_unit
         partials["generator_power_unit", "prop_power"] = (1 - inputs["epsilon_hover"]) / (
-            motor_eff * inputs["n_generators"])
+            motor_eff * inputs["n_gens"])
         partials["generator_power_unit", "eta_prop"] = -propulsive_power * (1 - inputs["epsilon_hover"]) / (
-            motor_eff**2 * inputs["n_generators"])
-        partials["generator_power_unit", "epsilon_hover"] = -electrical_power / inputs["n_generators"]
+            motor_eff**2 * inputs["n_gens"])
+        partials["generator_power_unit", "epsilon_hover"] = -electrical_power / inputs["n_gens"]
         partials["generator_power_unit", "eta_motor"] = -generator_power_unit / inputs["eta_motor"]
         partials["generator_power_unit", "eta_cable"] = -generator_power_unit / inputs["eta_cable"]
         partials["generator_power_unit", "eta_electronics"] = -generator_power_unit / inputs["eta_electronics"]
-        partials["generator_power_unit", "n_generators"] = -generator_power_unit / inputs["n_generators"]
+        partials["generator_power_unit", "n_gens"] = -generator_power_unit / inputs["n_gens"]
         partials["generator_power_unit", "hover_time"] = 0.0
         partials["generator_power_unit", "eta_generator"] = 0.0
         partials["generator_power_unit", "eta_gasturbine"] = 0.0
@@ -158,14 +158,14 @@ class ComputeHoverPowerEnergy(om.ExplicitComponent):
         # Partial derivatives for gasturbine_power
         gen_eff = inputs["eta_generator"] * inputs["eta_gasturbine"]
         partials["gasturbine_power_total", "prop_power"] = (1 - inputs["epsilon_hover"]) / (
-            motor_eff * inputs["n_generators"] * gen_eff)
+            motor_eff * inputs["n_gens"] * gen_eff)
         partials["gasturbine_power", "eta_prop"] = -propulsive_power * (1 - inputs["epsilon_hover"]) / (
-            motor_eff * inputs["n_generators"] * gen_eff)
-        partials["gasturbine_power_total", "epsilon_hover"] = -electrical_power / (inputs["n_generators"] * gen_eff)
+            motor_eff * inputs["n_gens"] * gen_eff)
+        partials["gasturbine_power_total", "epsilon_hover"] = -electrical_power / (inputs["n_gens"] * gen_eff)
         partials["gasturbine_power_total", "eta_motor"] = -generator_power_unit / (inputs["eta_motor"] * gen_eff)
         partials["gasturbine_power_total", "eta_cable"] = -generator_power_unit / (inputs["eta_cable"] * gen_eff)
         partials["gasturbine_power_total", "eta_electronics"] = -generator_power_unit / (inputs["eta_electronics"] * gen_eff)
-        partials["gasturbine_power_total", "n_generators"] = -generator_power_unit / (inputs["n_generators"] * gen_eff)
+        partials["gasturbine_power_total", "n_gens"] = -generator_power_unit / (inputs["n_gens"] * gen_eff)
         partials["gasturbine_power_total", "eta_generator"] = -outputs["gasturbine_power_total"] / inputs["eta_generator"]
         partials["gasturbine_power_total", "eta_gasturbine"] = -outputs["gasturbine_power_total"] / inputs["eta_gasturbine"]
         partials["gasturbine_power_total", "hover_time"] = 0.0
@@ -193,9 +193,9 @@ class HoverEnergyGroup(om.Group):
         self.add_subsystem("power_energy",
                           ComputeHoverPowerEnergy(),
                           promotes_inputs=["hover_time", "epsilon_hover" ,"n_lift_motors","shaft_power_unit",
-                                         "n_generators", "eta_motor", "eta_cable",
+                                         "n_gens", "eta_motor", "eta_cable",
                                          "eta_electronics", "eta_generator", "eta_gasturbine"],
-                          promotes_outputs=["battery_energy", "battery_power",
+                          promotes_outputs=["bat_energy", "bat_power",
                                           "lift_motor_power_unit", "generator_power_unit",
                                           "gasturbine_power_total"])
         
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     ivc.add_output("hover_time", val=120.0, units="s")
     ivc.add_output("epsilon_hover", val=0.4)
     ivc.add_output("n_lift_motors", val=8.0)
-    ivc.add_output("n_generators", val=2.0)
+    ivc.add_output("n_gens", val=2.0)
     ivc.add_output("eta_motor", val=0.95)
     ivc.add_output("d_blade", val=3.0, units="m")
     ivc.add_output("d_hub", val=1.0, units="m")
@@ -253,8 +253,8 @@ if __name__ == "__main__":
     print('\nHover Energy Results:')
     print('Hover Force Required:', prob.get_val('hover.hover_force')[0], 'N')
     print('Propulsive Power:', prob.get_val('hover.shaft_power_unit')[0]/1000, 'kW')
-    print('Battery Energy Required:', prob.get_val('hover.battery_energy')[0]/3.6e6, 'kWh')
-    print('Battery Power:', prob.get_val('hover.battery_power')[0]/1000, 'kW')
+    print('bat Energy Required:', prob.get_val('hover.bat_energy')[0]/3.6e6, 'kWh')
+    print('bat Power:', prob.get_val('hover.bat_power')[0]/1000, 'kW')
     print('Motor Power (each):', prob.get_val('hover.lift_motor_power_unit')[0]/1000, 'kW')
     print('Generator Power (each):', prob.get_val('hover.generator_power_unit')[0]/1000, 'kW')
     print('Gas Turbine Power (total):', prob.get_val('hover.gasturbine_power_total')[0]/1000, 'kW')

@@ -21,13 +21,13 @@ class WeightFractions(om.ExplicitComponent):
         self.add_input("w_nacelles", val=0.0, units="N",
                       desc="Nacelle weight")
         
-        # Propulsion weights (excluding battery)
+        # Propulsion weights (excluding bat)
         self.add_input("w_ptrain", val=0.0, units="N",
                       desc="Powertrain weight")
         
-        # Battery weight
-        self.add_input("w_battery", val=0.0, units="N",
-                      desc="Battery weight")
+        # bat weight
+        self.add_input("w_bat", val=0.0, units="N",
+                      desc="bat weight")
         
 
         # Systems weight
@@ -40,17 +40,17 @@ class WeightFractions(om.ExplicitComponent):
         
         # Add outputs
         self.add_output("w_empty", units="N",
-                       desc="Empty weight (excluding battery)")
+                       desc="Empty weight (excluding bat)")
         self.add_output("empty_weight_fraction", units=None,
-                       desc="Empty weight fraction (excluding battery)")
+                       desc="Empty weight fraction (excluding bat)")
         
         self.declare_partials("*", "*", method="exact")
         
     def compute(self, inputs, outputs):
-        # Sum all weights excluding battery
+        # Sum all weights excluding bat
         outputs["w_empty"] = (inputs["w_wing"] + inputs["w_fuselage"] + 
                             inputs["w_lg"] + inputs["w_nacelles"] +
-                            inputs["w_ptrain"] + inputs["w_systems"] - inputs["w_battery"])
+                            inputs["w_ptrain"] + inputs["w_systems"] - inputs["w_bat"])
         
         # Compute empty weight fraction
         outputs["empty_weight_fraction"] = outputs["w_empty"] / inputs["w_mtow"]
@@ -58,7 +58,7 @@ class WeightFractions(om.ExplicitComponent):
     def compute_partials(self, inputs, partials):
         # Partials for w_empty
         weight_components = ["w_wing", "w_fuselage", "w_lg", "w_nacelles",
-                           "w_ptrain", "w_systems", "w_battery"]
+                           "w_ptrain", "w_systems", "w_bat"]
         
         for component in weight_components:
             partials["w_empty", component] = 1.0
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     
     # Add propulsion weights
     ivc.add_output("w_ptrain", val=20000.0, units="N")
-    ivc.add_output("w_battery", val=1000.0, units="N")
+    ivc.add_output("w_bat", val=1000.0, units="N")
 
     # Add systems weight
     ivc.add_output("w_systems", val=1500.0, units="N")
