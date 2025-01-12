@@ -9,7 +9,7 @@ class WingWeight(om.ExplicitComponent):
     """Computes wing weight based on Raymer's equations."""
     
     def setup(self):
-        self.add_input("w_mtow", val=1.0, units="lbf",
+        self.add_input("w_mto", val=1.0, units="lbf",
                       desc="Maximum takeoff weight")
         self.add_input("n_ult", val=1.0, units=None,
                       desc="Ultimate load factor")
@@ -33,7 +33,7 @@ class WingWeight(om.ExplicitComponent):
         
     def compute(self, inputs, outputs):
 
-        w_mtow = inputs["w_mtow"] 
+        w_mto = inputs["w_mto"] 
         n_ult = inputs["n_ult"]
         s_w = inputs["s_w"]
         ar_w = inputs["ar_w"]
@@ -46,12 +46,12 @@ class WingWeight(om.ExplicitComponent):
         outputs["w_wing"] = (
         0.036 
         * s_w**0.758 
-        * w_mtow**0.0035 
+        * w_mto**0.0035 
         * (ar_w / (np.cos(sweep_c_4_w)**2))**0.6 
         * q_cruise**0.006 
         * lambda_w**0.04 
         * ((100 * t_c_w) / np.cos(sweep_c_4_w))**-0.3 
-        * (n_ult * w_mtow)**0.49
+        * (n_ult * w_mto)**0.49
     )
         
 
@@ -62,7 +62,7 @@ class HorizontalTailWeight(om.ExplicitComponent):
         # Add inputs
         self.add_input('n_ult', val=3.8, units=None,
                       desc='Ultimate load factor')
-        self.add_input('w_mtow', val=1000.0, units='lbf',
+        self.add_input('w_mto', val=1000.0, units='lbf',
                       desc='Takeoff gross weight')
         self.add_input('q_cruise', val=100.0, units='lbf/ft**2',
                       desc='Dynamic pressure at cruise')
@@ -85,7 +85,7 @@ class HorizontalTailWeight(om.ExplicitComponent):
         
     def compute(self, inputs, outputs):
         n_ult = inputs['n_ult']
-        w_mtow = inputs['w_mtow']
+        w_mto = inputs['w_mto']
         q_cruise = inputs['q_cruise']
         s_ht = inputs['s_ht']
         t_c_ht = inputs['t_c_ht']
@@ -95,7 +95,7 @@ class HorizontalTailWeight(om.ExplicitComponent):
         
         outputs['w_htail'] = (
             0.016 
-            * (n_ult * w_mtow)**0.414
+            * (n_ult * w_mto)**0.414
             * q_cruise**0.168
             * s_ht**0.896 
             * ((100 * t_c_ht) / np.cos(sweep_c_4_ht))**-0.12
@@ -115,7 +115,7 @@ class VerticalTailWeight(om.ExplicitComponent):
                       desc='Fraction of tail area relative to vertical tail')
         self.add_input('n_ult', val=3.8, units=None,
                       desc='Ultimate load factor')
-        self.add_input('w_mtow', val=1000.0, units='lbf',
+        self.add_input('w_mto', val=1000.0, units='lbf',
                       desc='Takeoff gross weight')
         self.add_input('q_cruise', val=100.0, units='lbf/ft**2',
                       desc='Dynamic pressure at cruise')
@@ -140,7 +140,7 @@ class VerticalTailWeight(om.ExplicitComponent):
 
         f_tail = inputs['f_tail']
         n_ult = inputs['n_ult']
-        w_mtow = inputs['w_mtow']
+        w_mto = inputs['w_mto']
         q_cruise = inputs['q_cruise']
         s_vt = inputs['s_vt']
         t_c_vt = inputs['t_c_vt']
@@ -151,7 +151,7 @@ class VerticalTailWeight(om.ExplicitComponent):
         outputs['w_vtail'] = (
             0.073
             * (1 + 0.2 * f_tail)
-            * (n_ult * w_mtow)**0.376
+            * (n_ult * w_mto)**0.376
             * q_cruise**0.122
             * s_vt**0.873
             * ((100 * t_c_vt) / np.cos(sweep_c_4_vt))**-0.49
@@ -185,7 +185,7 @@ class FurnishingsWeight(om.ExplicitComponent):
     """Computes furnishings weight using Raymer's equation."""
     
     def setup(self):
-        self.add_input("w_mtow", val=2000.0, units="lbf",
+        self.add_input("w_mto", val=2000.0, units="lbf",
                       desc="Takeoff gross weight")
         
         self.add_output("w_furnishings", units="lbf",
@@ -195,8 +195,8 @@ class FurnishingsWeight(om.ExplicitComponent):
         
     def compute(self, inputs, outputs):
         
-        w_mtow = inputs["w_mtow"]
-        outputs["w_furnishings"] = 0.0582 * w_mtow - 65
+        w_mto = inputs["w_mto"]
+        outputs["w_furnishings"] = 0.0582 * w_mto - 65
         
 
 
@@ -229,7 +229,7 @@ class FlightControlWeight(om.ExplicitComponent):
                       desc="Wingspan")
         self.add_input("n_ult", val=3.8, units=None,
                       desc="Ultimate load factor")
-        self.add_input("w_mtow", val=2000.0, units="lbf",
+        self.add_input("w_mto", val=2000.0, units="lbf",
                       desc="Takeoff gross weight")
         
         self.add_output("w_fc_sys", units="lbf",
@@ -243,13 +243,13 @@ class FlightControlWeight(om.ExplicitComponent):
         l_fs = inputs["l_fs"]
         b_w = inputs["b_w"]
         n_ult = inputs["n_ult"]
-        w_mtow = inputs["w_mtow"]
+        w_mto = inputs["w_mto"]
         
         outputs["w_fc_sys"] = (
             0.053 
             * l_fs**1.536 
             * b_w**0.371 
-            * ((n_ult * w_mtow * 1e-4)**0.80)
+            * ((n_ult * w_mto * 1e-4)**0.80)
         )
         
 
@@ -342,16 +342,10 @@ class AircraftWeight(om.ExplicitComponent):
                       desc="Fuselage weight")
         self.add_input("w_lg", val=1.0, units="N",
                       desc="Landing gear weight")
-        self.add_input("w_nacelles", val=1.0, units="N",
-                      desc="Nacelle weight")
-        self.add_input("w_prop", val=1.0, units="N",
-                      desc="Propeller weight")
         self.add_input("w_systems", val=1.0, units="N",
                       desc="Systems weight")
         self.add_input("w_ptrain", val=1.0, units="N",
                       desc="Powertrain weight")
-        self.add_input("w_fuel", val=1.0, units="N",
-                      desc="Fuel weight")
         self.add_input("w_payload", val=1.0, units="N",
                       desc="Payload weight")
         
@@ -359,7 +353,7 @@ class AircraftWeight(om.ExplicitComponent):
         self.add_output("w_airframe", units="N",
                        desc="Total structural weight")
         
-        self.add_output("w_mtow", units="N",
+        self.add_output("w_mto", units="N",
                        desc="Total maximum takeoff weight")
         
 
@@ -367,33 +361,37 @@ class AircraftWeight(om.ExplicitComponent):
         
     def compute(self, inputs, outputs):
         outputs["w_airframe"] = (inputs["w_wing"] + inputs["w_fuselage"] + 
-                             inputs["w_lg"] + inputs["w_nacelles"] +
-                             inputs["w_prop"] +
-                             inputs["w_systems"])
-        outputs["w_mtow"] = (inputs["w_airframe"] + inputs["w_ptrain"] +
-                             inputs["w_fuel"] + inputs["w_payload"])
+                             inputs["w_lg"] + inputs["w_systems"])
+        outputs["w_mto"] = (inputs["w_airframe"] + inputs["w_ptrain"] +
+                             inputs["w_payload"])
 
 
 class WeightGroup(om.Group):
     """Group containing all weight calculation components."""
     
     def setup(self):
-        self.add_subsystem("wing_weight", WingWeight(), promotes_inputs=["*"])
-        self.add_subsystem("fuselage_weight", FuselageWeight(), promotes_inputs=["*"])
-        self.add_subsystem("landing_gear_weight", LandingGearWeight(), promotes_inputs=["*"])
-        self.add_subsystem("propeller_weight", PropellerWeight(), promotes_inputs=["*"])
-        self.add_subsystem("nacelle_weight", NacelleWeight(), 
-                          promotes_inputs=["n_en"],
-                          promotes_outputs=["w_nacelles"])
-        self.add_subsystem("systems_weight", SystemsWeight(), promotes_inputs=["*"])
+        self.add_subsystem("wing_weight", WingWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("fuselage_weight", FuselageWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("landing_gear_weight", LandingGearWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("systems_weight", SystemsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         
             
         # Add aircraft weight calculator
         self.add_subsystem("aircraft_weight",
                           AircraftWeight(),
+                          promotes_inputs=["*"],
                           promotes_outputs=["*"])
         
         # Connect all weights to aircraft weight calculator
+        self.nonlinear_solver = om.NewtonSolver()
+        self.nonlinear_solver.options['maxiter'] = 20
+        self.nonlinear_solver.options['atol'] = 1e-6
+        self.nonlinear_solver.options['rtol'] = 1e-6
+        self.nonlinear_solver.options['solve_subsystems'] = True
+
+        # Add linear solver
+        self.linear_solver = om.DirectSolver()
+    
 
 
 if __name__ == "__main__":
@@ -419,9 +417,12 @@ if __name__ == "__main__":
     ivc.add_output("p_to", val=1000000.0, units="W")
     ivc.add_output("n_p", val=2.0)
     ivc.add_output("d_p", val=2.0, units="m")
-    ivc.add_output("w_ptrain", val=20000.0, units="N")
-    ivc.add_output("w_fuel", val=10000.0, units="N")
+    ivc.add_output("w_ptrain", val=25000.0, units="N")
     ivc.add_output("w_payload", val=10000.0, units="N")
+    ivc.add_output("sweep_c_4_w", val=0.0, units="rad")
+    ivc.add_output("lambda_w", val=0.5)
+    ivc.add_output("q_cruise", val=100.0, units="lbf/ft**2")
+    ivc.add_output("w_fuel_system", val=10000.0, units="N")
     
     # Build the model
     model = prob.model

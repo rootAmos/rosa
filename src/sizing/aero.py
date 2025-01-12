@@ -36,6 +36,7 @@ class Aerodynamics(om.ExplicitComponent):
         self.declare_partials("cd", ["cl", "ar_w", "e_w", "cd0"], method="exact")
         
     def compute(self, inputs, outputs):
+        
         """Compute lift and drag coefficients."""
         alpha = inputs["alpha"]
         ar_w = inputs["ar_w"]

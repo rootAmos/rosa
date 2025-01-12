@@ -7,6 +7,7 @@ from computehover import ComputeHoverForce
 from computehover import ComputeHoverPowerEnergy
 from convergecruiserange import ConvergeCruiseRange
 from computeweightfractions import AircraftWeight
+from computeptrainweights import ComputePTrainWeights
 
 
 class ConvergeAircraft(om.Group):
@@ -19,11 +20,8 @@ class ConvergeAircraft(om.Group):
                            desc='Type of fuel to use')
     
     def setup(self):
-        # Create cycle for MTOM convergence
-        cycle = self.add_subsystem('cycle', om.Group(), promotes=['*'])
-        
         # Add hover power and energy calculation
-        cycle.add_subsystem("hover",
+        self.add_subsystem("hover",
                           ComputeHoverPowerEnergy(),
                           promotes_inputs=["mass_aircraft", "hover_time",
                                          "epsilon_hover", "n_lift_motors",
@@ -32,36 +30,40 @@ class ConvergeAircraft(om.Group):
                                          "eta_gasturbine", "rho"])
         
         # Add cruise range convergence
-        cycle.add_subsystem("cruise",
+        self.add_subsystem("cruise",
                           ConvergeCruiseRange(fuel_type=self.options['fuel_type']),
                           promotes_inputs=["bat_energy_density"])
         
         # Add weight computation
-        cycle.add_subsystem("weights",
+        self.add_subsystem("weights",
                           AircraftWeight(),
                           promotes_outputs=["w_struct"])
         
+        self.add_subsystem("ptrain_weights", ComputePTrainWeights(), 
+                           promotes_inputs=["*"], 
+                           promotes_outputs=["*"])
+        
         # Connect hover outputs to cruise and weights
-        cycle.connect("hover.bat_energy", "cruise.bat_energy")
-        cycle.connect("hover.bat_power", ["weights.bat_power", "cruise.bat_power"])
-        cycle.connect("hover.electrical_power", "weights.electrical_power")
-        cycle.connect("hover.motor_power", "weights.motor_power")
-        cycle.connect("hover.generator_power", "weights.generator_power")
-        cycle.connect("hover.gasturbine_power", "weights.gasturbine_power")
+        self.connect("hover.bat_energy", "cruise.bat_energy")
+        self.connect("hover.bat_power", ["weights.bat_power", "cruise.bat_power"])
+        self.connect("hover.electrical_power", "weights.electrical_power")
+        self.connect("hover.motor_power", "weights.motor_power")
+        self.connect("hover.generator_power", "weights.generator_power")
+        self.connect("hover.gasturbine_power", "weights.gasturbine_power")
         
         # Connect cruise outputs to weights
-        cycle.connect("cruise.fuel_weight.w_fuel", "weights.w_fuel")
+        self.connect("cruise.fuel_weight.w_fuel", "weights.w_fuel")
         
         # Connect weight back to mass_aircraft for next iteration
-        cycle.connect("w_struct", "mass_aircraft", units="N")
+        self.connect("w_struct", "mass_aircraft", units="N")
         
         # Add nonlinear solver for MTOM convergence
-        cycle.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
-        cycle.nonlinear_solver.options['maxiter'] = 50
-        cycle.nonlinear_solver.options['iprint'] = 2
+        self.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
+        self.nonlinear_solver.options['maxiter'] = 50
+        self.nonlinear_solver.options['iprint'] = 2
         
         # Add linear solver
-        cycle.linear_solver = om.DirectSolver()
+        self.linear_solver = om.DirectSolver()
 
 
 if __name__ == "__main__":

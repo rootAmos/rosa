@@ -28,6 +28,8 @@ class WeightFractions(om.ExplicitComponent):
         # bat weight
         self.add_input("w_bat", val=0.0, units="N",
                       desc="bat weight")
+        self.add_input("w_fuel", val=0.0, units="N",
+                      desc="fuel weight")
         
 
         # Systems weight
@@ -50,7 +52,7 @@ class WeightFractions(om.ExplicitComponent):
         # Sum all weights excluding bat
         outputs["w_empty"] = (inputs["w_wing"] + inputs["w_fuselage"] + 
                             inputs["w_lg"] + inputs["w_nacelles"] +
-                            inputs["w_ptrain"] + inputs["w_systems"] - inputs["w_bat"])
+                            inputs["w_ptrain"] + inputs["w_systems"] - inputs["w_bat"] - inputs["w_fuel"])
         
         # Compute empty weight fraction
         outputs["empty_weight_fraction"] = outputs["w_empty"] / inputs["w_mtow"]
@@ -58,7 +60,7 @@ class WeightFractions(om.ExplicitComponent):
     def compute_partials(self, inputs, partials):
         # Partials for w_empty
         weight_components = ["w_wing", "w_fuselage", "w_lg", "w_nacelles",
-                           "w_ptrain", "w_systems", "w_bat"]
+                           "w_ptrain", "w_systems", "w_bat", "w_fuel"]
         
         for component in weight_components:
             partials["w_empty", component] = 1.0
@@ -88,6 +90,7 @@ if __name__ == "__main__":
     # Add propulsion weights
     ivc.add_output("w_ptrain", val=20000.0, units="N")
     ivc.add_output("w_bat", val=1000.0, units="N")
+    ivc.add_output("w_fuel", val=1000.0, units="N")
 
     # Add systems weight
     ivc.add_output("w_systems", val=1500.0, units="N")

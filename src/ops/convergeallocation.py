@@ -124,7 +124,7 @@ if __name__ == "__main__":
     ivc.add_output('pax_per_flt', val= 19 * np.ones([n_rt, n_ac]), desc='Passengers per flight for each route')
     ivc.add_output('cost_per_flt', val= 1000 * np.ones([n_rt, n_ac]), desc='Total operating cost (excluding fuel) per flight for each route')
     ivc.add_output('flt_per_day', val= 99 * np.ones([n_rt, n_ac]), desc='Number of flights per day for each route')
-    ivc.add_output('cost_fuel', val= 10 * np.ones([n_rt, n_ac]), units='1/kg', desc='Fuel cost per flight for each route')    
+    ivc.add_output('cost_fuel', val= 10 * np.ones([n_rt, n_ac]), units='1/kg', desc='Fuel cost per kg')    
     ivc.add_output('fuel_flt', val= 100 * np.ones([n_rt, n_ac]), units='kg', desc='Fuel burn per flight for each aircraft')
     ivc.add_output('time_per_flt', val= 2 * np.ones([n_rt, n_ac]), units='h', desc='Block time per flight for each route')
     ivc.add_output('t_maint', val= 1 * np.ones([n_ac]), units = 'h', desc='Maintenance time per aircraft. Scaled by number of flights')
