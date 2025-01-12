@@ -8,7 +8,9 @@ from computehover import ComputeHoverPowerEnergy
 from convergecruiserange import ConvergeCruiseRange
 from computeweightfractions import AircraftWeight
 from computeptrainweights import ComputePTrainWeights
-
+from computeamos import ComputeAtmos
+from computecruise import Cruise
+from computeductedfan import ComputeDuctedfan
 
 class ConvergeAircraft(om.Group):
     """
@@ -21,6 +23,10 @@ class ConvergeAircraft(om.Group):
     
     def setup(self):
         # Add hover power and energy calculation
+
+        
+        self.add_subsystem("atmos", ComputeAtmos(), promotes_inputs=["*"], promotes_outputs=["*"])
+
         self.add_subsystem("hover",
                           ComputeHoverPowerEnergy(),
                           promotes_inputs=["mass_aircraft", "hover_time",
@@ -29,8 +35,16 @@ class ConvergeAircraft(om.Group):
                                          "eta_electronics", "eta_generator",
                                          "eta_gasturbine", "rho"])
         
+        self.add_subsystem("cruise", Cruise(), promotes_inputs=["*"], promotes_outputs=["*"])
+
+        self.add_subsystem("dfan",
+                          ComputeDuctedfan(),
+                          promotes_inputs=["*"],
+                          promotes_outputs=[])
+
+        
         # Add cruise range convergence
-        self.add_subsystem("cruise",
+        self.add_subsystem("cruiserange",
                           ConvergeCruiseRange(fuel_type=self.options['fuel_type']),
                           promotes_inputs=["bat_energy_density"])
         

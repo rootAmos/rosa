@@ -20,8 +20,8 @@ class ConvergeCruiseRange(om.ImplicitComponent):
                       desc="Inverter efficiency")
         self.add_input("eta_m", val=1.0, units=None,
                       desc="Motor efficiency")
-        self.add_input("eta_p", val=1.0, units=None,
-                      desc="Propulsive efficiency")
+        self.add_input("eta_pt", val=1.0, units=None,
+                      desc="total propulsor efficiency incl fan, duct, and isentropic losses")
         self.add_input("eta_g", val=1.0, units=None,
                       desc="Generator efficiency")
         self.add_input("cb", val=1.0, units="J/kg",
@@ -79,7 +79,7 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         cd = inputs["cd"]
         eta_i = inputs["eta_i"]
         eta_m = inputs["eta_m"]
-        eta_p = inputs["eta_p"]
+        eta_pt = inputs["eta_pt"]
         eta_g = inputs["eta_g"]
         cb = inputs["cb"]
         cp = inputs["cp"]
@@ -88,7 +88,7 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         f_we = inputs["f_we"]
         
         # Terms for readability
-        term1 = (cl/cd) * (eta_i * eta_m * eta_p / g) * (eta_g / cp)
+        term1 = (cl/cd) * (eta_i * eta_m * eta_pt / g) * (eta_g / cp)
         term2 = epsilon * wto_max + (1 - epsilon) * cb * cp * (w_pay + f_we * wto_max)
         
         return (
@@ -109,7 +109,7 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         cd = inputs["cd"]
         eta_i = inputs["eta_i"]
         eta_m = inputs["eta_m"]
-        eta_p = inputs["eta_p"]
+        eta_pt = inputs["eta_pt"]
         eta_g = inputs["eta_g"]
         cb = inputs["cb"]
         cp = inputs["cp"]
@@ -118,35 +118,35 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         f_we = inputs["f_we"]
         
 
-        partials["epsilon", "epsilon"] = -(cl*eta_i*eta_m*eta_p*((cb*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*epsilon*(wto_max - cb*cp*(w_pay + f_we*wto_max))*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2 + (eta_g*((wto_max*(cb*cp - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (wto_max*(wto_max - cb*cp*(w_pay + f_we*wto_max))*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1)))))/(cd*g)
+        partials["epsilon", "epsilon"] = -(cl*eta_i*eta_m*eta_pt*((cb*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*epsilon*(wto_max - cb*cp*(w_pay + f_we*wto_max))*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2 + (eta_g*((wto_max*(cb*cp - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (wto_max*(wto_max - cb*cp*(w_pay + f_we*wto_max))*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1)))))/(cd*g)
 
         # With respect to target_range
         partials["epsilon", "target_range"] = -1.0
         
         # With respect to cl
-        partials["epsilon", "cl"] = (eta_i*eta_m*eta_p*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
+        partials["epsilon", "cl"] = (eta_i*eta_m*eta_pt*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
 
         
         # With respect to cd
-        partials["epsilon", "cd"] = -(cl*eta_i*eta_m*eta_p*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd**2*g)
+        partials["epsilon", "cd"] = -(cl*eta_i*eta_m*eta_pt*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd**2*g)
 
         
         # With respect to efficiencies
-        partials["epsilon", "eta_i"] = (cl*eta_m*eta_p*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
+        partials["epsilon", "eta_i"] = (cl*eta_m*eta_pt*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
 
-        partials["epsilon", "eta_m"] = (cl*eta_i*eta_p*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
+        partials["epsilon", "eta_m"] = (cl*eta_i*eta_pt*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
 
-        partials["epsilon", "eta_p"] = (cl*eta_i*eta_m*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
+        partials["epsilon", "eta_pt"] = (cl*eta_i*eta_m*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp - (cb*epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*g)
 
-        partials["epsilon", "eta_g"] = (cl*eta_i*eta_m*eta_p*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*cp*g)
+        partials["epsilon", "eta_g"] = (cl*eta_i*eta_m*eta_pt*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/(cd*cp*g)
 
-        partials["epsilon", "cb"] = -(cl*eta_i*eta_m*eta_p*((epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (eta_g*((cp*wto_max*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cp*wto_max*(w_pay + f_we*wto_max)*(epsilon - cb*cp*(epsilon - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1))) + (cb*cp*epsilon*(w_pay + f_we*wto_max)*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
-        partials["epsilon", "cp"] = -(cl*eta_i*eta_m*eta_p*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp**2 + (eta_g*((cb*wto_max*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*wto_max*(w_pay + f_we*wto_max)*(epsilon - cb*cp*(epsilon - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1))) + (cb**2*epsilon*(w_pay + f_we*wto_max)*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
+        partials["epsilon", "cb"] = -(cl*eta_i*eta_m*eta_pt*((epsilon*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (eta_g*((cp*wto_max*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cp*wto_max*(w_pay + f_we*wto_max)*(epsilon - cb*cp*(epsilon - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1))) + (cb*cp*epsilon*(w_pay + f_we*wto_max)*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
+        partials["epsilon", "cp"] = -(cl*eta_i*eta_m*eta_pt*((eta_g*np.log((wto_max*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))))/cp**2 + (eta_g*((cb*wto_max*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*wto_max*(w_pay + f_we*wto_max)*(epsilon - cb*cp*(epsilon - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1))) + (cb**2*epsilon*(w_pay + f_we*wto_max)*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
 
 
-        partials["epsilon", "wto_max"] = (cl*eta_i*eta_m*eta_p*((cb*epsilon*(epsilon - cb*cp*f_we*(epsilon - 1))*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2 - (cb*epsilon*(f_we - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (eta_g*((epsilon - cb*cp*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (wto_max*(epsilon - cb*cp*f_we*(epsilon - 1))*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1)))))/(cd*g)
-        partials["epsilon", "w_pay"] = -(cl*eta_i*eta_m*eta_p*((cb*epsilon)/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*eta_g*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (cb**2*cp*epsilon*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
-        partials["epsilon", "f_we"] = -(cl*eta_i*eta_m*eta_p*((cb*epsilon*wto_max)/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*eta_g*wto_max*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (cb**2*cp*epsilon*wto_max*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
+        partials["epsilon", "wto_max"] = (cl*eta_i*eta_m*eta_pt*((cb*epsilon*(epsilon - cb*cp*f_we*(epsilon - 1))*(w_pay + wto_max*(f_we - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2 - (cb*epsilon*(f_we - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (eta_g*((epsilon - cb*cp*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (wto_max*(epsilon - cb*cp*f_we*(epsilon - 1))*(epsilon - cb*cp*(epsilon - 1)))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2)*(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)))/(cp*wto_max*(epsilon - cb*cp*(epsilon - 1)))))/(cd*g)
+        partials["epsilon", "w_pay"] = -(cl*eta_i*eta_m*eta_pt*((cb*epsilon)/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*eta_g*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (cb**2*cp*epsilon*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
+        partials["epsilon", "f_we"] = -(cl*eta_i*eta_m*eta_pt*((cb*epsilon*wto_max)/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) - (cb*eta_g*wto_max*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1)) + (cb**2*cp*epsilon*wto_max*(w_pay + wto_max*(f_we - 1))*(epsilon - 1))/(epsilon*wto_max - cb*cp*(w_pay + f_we*wto_max)*(epsilon - 1))**2))/(cd*g)
 
 
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     ivc.add_output("cd", val=0.03, units=None)
     ivc.add_output("eta_i", val=0.95, units=None)
     ivc.add_output("eta_m", val=0.95, units=None)
-    ivc.add_output("eta_p", val=0.85, units=None)
+    ivc.add_output("eta_pt", val=0.85, units=None)
     ivc.add_output("eta_g", val=0.95, units=None)
     ivc.add_output("cb", val=400*3600, units="J/kg")
     ivc.add_output("cp", val=0.3/60/60/1000, units="1/s")
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     inputs["cd"] = prob.get_val('cruise_analysis.cd')[0]
     inputs["eta_i"] = prob.get_val('cruise_analysis.eta_i')[0]
     inputs["eta_m"] = prob.get_val('cruise_analysis.eta_m')[0]
-    inputs["eta_p"] = prob.get_val('cruise_analysis.eta_p')[0]
+    inputs["eta_pt"] = prob.get_val('cruise_analysis.eta_pt')[0]
     inputs["eta_g"] = prob.get_val('cruise_analysis.eta_g')[0]
     inputs["cb"] = prob.get_val('cruise_analysis.cb')[0]
     inputs["cp"] = prob.get_val('cruise_analysis.cp')[0]
