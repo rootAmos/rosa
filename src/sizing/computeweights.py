@@ -5,6 +5,8 @@ import openmdao.api as om
 from typing import Any
 from computeptrainweights import HybridPowertrainWeight
 import pdb
+import matplotlib.pyplot as plt
+from formatmassresults import FormatMassResults
 
 class WingWeight(om.ExplicitComponent):
     """Computes wing weight based on Raymer's equations."""
@@ -729,15 +731,7 @@ if __name__ == "__main__":
     
     # Print results
     g = 9.806
-    print('\nStructural Weight Results:')
-    print('Wing Weight:', prob.get_val('weights.wing_weight.w_wing')[0]/2.20462, 'kg')
-    print('Fuselage Weight:', prob.get_val('weights.fuselage_weight.w_fuselage')[0]/2.20462, 'kg')
-    print('Landing Gear Weight:', prob.get_val('weights.landing_gear_weight.w_lg')[0]/2.20462, 'kg')
-    print('Systems Weight:', prob.get_val('weights.systems_weight.w_systems')[0]/g, 'kg')
-    print('Total Structural Weight:', prob.get_val('weights.w_airframe')[0]/g, 'kg')
-    print('Horizontal Tail Weight:', prob.get_val('weights.w_htail')[0]/2.20462, 'kg')
 
-    print('Vertical Tail Weight:', prob.get_val('weights.w_vtail')[0]/2.20462, 'kg')
-
-    print('Hybrid Powertrain Weight:', prob.get_val('weights.hybrid_ptrain_weight.w_hybrid_ptrain')[0]/g, 'kg')
-    print('Total Maximum Takeoff Weight:', prob.get_val('weights.w_mto_calc')[0]/g, 'kg')
+    # Format results
+    FormatMassResults.print_tables(prob)
+    FormatMassResults.plot_results(prob)
