@@ -40,7 +40,23 @@ class FuelSystemWeight(om.ExplicitComponent):
             * n_tank**0.242 
             * n_gens**0.157
         ) / 2.20462 * g
-        
+
+    def compute_partials(self, inputs, partials):
+
+        v_fuel_tot = inputs["v_fuel_tot"]
+        v_fuel_int = inputs["v_fuel_int"]
+        n_tank = inputs["n_tank"]
+        n_gens = inputs["n_gens"]
+        g = 9.806
+
+        partials["w_fuel_system", "v_fuel_tot"] = (8.0407*n_gens**0.1570*n_tank**0.2420*(v_fuel_tot/(v_fuel_int + v_fuel_tot))**0.3630)/v_fuel_tot**0.2740 - (4.0204*n_gens**0.1570*n_tank**0.2420*v_fuel_tot**0.7260*(v_fuel_tot/(v_fuel_int + v_fuel_tot)**2 - 1/(v_fuel_int + v_fuel_tot)))/(v_fuel_tot/(v_fuel_int + v_fuel_tot))**0.6370
+
+        partials["w_fuel_system", "v_fuel_int"] = -(4.0204*n_gens**0.1570*n_tank**0.2420*v_fuel_tot**1.7260)/((v_fuel_int + v_fuel_tot)**2*(v_fuel_tot/(v_fuel_int + v_fuel_tot))**0.6370)
+
+        partials["w_fuel_system", "n_tank"] = (2.6802*n_gens**0.1570*v_fuel_tot**0.7260*(v_fuel_tot/(v_fuel_int + v_fuel_tot))**0.3630)/n_tank**0.7580
+
+        partials["w_fuel_system", "n_gens"] = (1.7388*n_tank**0.2420*v_fuel_tot**0.7260*(v_fuel_tot/(v_fuel_int + v_fuel_tot))**0.3630)/n_gens**0.8430
+
 
 
 class PropellerWeight(om.ExplicitComponent):
@@ -65,7 +81,7 @@ class PropellerWeight(om.ExplicitComponent):
         self.add_output("w_props", units="N",
                        desc="Propeller weight")
         
-        self.declare_partials("*", "*", method="fd")
+        self.declare_partials("*", "*", method="exact")
         
     def compute(self, inputs, outputs):
 
@@ -78,6 +94,27 @@ class PropellerWeight(om.ExplicitComponent):
         g = 9.806
         
         outputs["w_props"] = (k_prop * n_props * n_blades ** 0.391 * ( (d_blades * p_shaft) / (n_props * 1000) ) ** 0.782) / 2.20462 * g
+
+    def compute_partials(self, inputs, partials):
+
+        n_props = inputs["n_props"]
+        n_blades = inputs["n_blades"]
+        p_shaft = inputs["p_shaft"]
+        d_blades = inputs["d_blades"]
+        k_prop = inputs["k_prop"]
+
+        g = 9.806
+
+        partials["w_props", "n_props"] = 4.4479*k_prop*n_blades**0.3910*((0.0010*d_blades*p_shaft)/n_props)**0.7820 - (0.0035*d_blades*k_prop*n_blades**0.3910*p_shaft)/(n_props*((0.0010*d_blades*p_shaft)/n_props)**0.2180)
+
+        partials["w_props", "n_blades"] = (1.7391*k_prop*n_props*((0.0010*d_blades*p_shaft)/n_props)**0.7820)/n_blades**0.6090
+
+        partials["w_props", "k_prop"] = 4.4479*n_blades**0.3910*n_props*((0.0010*d_blades*p_shaft)/n_props)**0.7820
+
+        partials["w_props", "d_blades"] = (0.0035*k_prop*n_blades**0.3910*p_shaft)/((0.0010*d_blades*p_shaft)/n_props)**0.2180
+
+        partials["w_props", "p_shaft"] = (0.0035*d_blades*k_prop*n_blades**0.3910)/((0.0010*d_blades*p_shaft)/n_props)**0.2180
+
 
 
 class TurbineWeight(om.ExplicitComponent):
@@ -95,7 +132,7 @@ class TurbineWeight(om.ExplicitComponent):
         self.add_output("w_turbines", units="N",
                        desc="turbine engine weight")
         
-        self.declare_partials("*", "*", method="fd")
+        self.declare_partials("*", "*", method="exact")
         
     def compute(self, inputs, outputs):
 
@@ -103,6 +140,15 @@ class TurbineWeight(om.ExplicitComponent):
         g = 9.806
 
         outputs["w_turbines"] = (inputs['n_gens'] * (71.65 + 0.3658 * p_turbine)) / 2.20462 * g
+
+    def compute_partials(self, inputs, partials):
+
+
+        p_turbine = inputs["p_turbine_unit"]
+        g = 9.806
+
+        partials["w_turbines", "p_turbine_unit"] = (inputs['n_gens'] * 0.3658) / 2.20462 * g
+        partials["w_turbines", "n_gens"] = (p_turbine * 0.3658) / 2.20462 * g
 
 
 class NacelleWeight(om.ExplicitComponent):
@@ -126,7 +172,7 @@ class NacelleWeight(om.ExplicitComponent):
         self.add_output("w_nacelles", units="N",
                        desc="Nacelles weight")
         
-        self.declare_partials("*", "*", method="fd")
+        self.declare_partials("*", "*", method="exact")
         
     def compute(self, inputs, outputs):
 
@@ -134,6 +180,16 @@ class NacelleWeight(om.ExplicitComponent):
         g = 9.806
         outputs["w_nacelles"] = 0.14 * ( inputs["p_motor"] * inputs["n_motors"] + inputs["p_gen_unit"] *\
                                          inputs["n_gens"]  + inputs["p_turbine_unit"] * inputs["n_gens"] ) / 2.20462 * g
+        
+    def compute_partials(self, inputs, partials):   
+
+        g = 9.806
+
+        partials["w_nacelles", "p_motor"] = (0.14 * inputs["n_motors"]) / 2.20462 * g
+        partials["w_nacelles", "n_motors"] = (0.14 * inputs["p_motor"]) / 2.20462 * g
+        partials["w_nacelles", "p_gen_unit"] = (0.14 * inputs["n_gens"]) / 2.20462 * g
+        partials["w_nacelles", "n_gens"] = (0.14 * (inputs["p_gen_unit"] + inputs["p_turbine_unit"])) / 2.20462 * g
+        partials["w_nacelles", "p_turbine_unit"] = (0.14 * inputs["n_gens"]) / 2.20462 * g
 
 class ElecPowertrainWeight(om.ExplicitComponent):
     """Computes weights of electrical powertrain components."""
@@ -274,7 +330,7 @@ class ElecPowertrainWeight(om.ExplicitComponent):
                 else:
                     partials["w_elec_ptrain", input_name] = 0.0
 
-class HybridPowertrainGroup(om.Group):
+class HybridPowertrainWeight(om.Group):
     """Group that combines all hybrid-electric powertrain components for weight calculation."""
     
     def setup(self):
@@ -314,6 +370,13 @@ class HybridPowertrainGroup(om.Group):
         self.connect("nacelle.w_nacelles", "total_weight.w_nacelles")
         self.connect("propeller.w_props", "total_weight.w_props")
         self.connect("turbine_engine.w_turbines", "total_weight.w_turbines")
+
+        self.nonlinear_solver = om.NewtonSolver()
+        self.linear_solver = om.DirectSolver()
+        self.nonlinear_solver.options['maxiter'] = 20
+        self.nonlinear_solver.options['atol'] = 1e-6
+        self.nonlinear_solver.options['rtol'] = 1e-6
+        self.nonlinear_solver.options['solve_subsystems'] = True
 
 if __name__ == "__main__":
     # Create test problem
@@ -360,7 +423,7 @@ if __name__ == "__main__":
     # Build the model
     model = prob.model
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
-    model.add_subsystem('hybrid_ptrain', HybridPowertrainGroup(), promotes_inputs=["*"])
+    model.add_subsystem('hybrid_ptrain', HybridPowertrainWeight(), promotes_inputs=["*"])
     
     # Setup problem
     prob.setup()
@@ -381,4 +444,4 @@ if __name__ == "__main__":
     print('Total Hybrid Powertrain Weight:', prob.get_val('hybrid_ptrain.total_weight.w_hybrid_ptrain')[0]/g, 'kg')
     
     # Check partials (uncomment to verify derivatives)
-    # prob.check_partials(compact_print=True) 
+    prob.check_partials(compact_print=True) 

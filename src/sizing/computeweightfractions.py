@@ -115,4 +115,4 @@ if __name__ == "__main__":
     print('Empty Weight Fraction:', prob.get_val('weight_fractions.empty_weight_fraction')[0])
     
     # Check partials
-    # prob.check_partials(compact_print=True) 
+    prob.check_partials(compact_print=True) 
