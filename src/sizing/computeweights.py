@@ -556,7 +556,7 @@ class AircraftWeight(om.ExplicitComponent):
         outputs["w_airframe"] = w_airframe
                              
         outputs["w_mto_calc"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_pay"] + inputs["w_systems"] + inputs["w_furnishings"] + inputs["w_fuel"]
-        outputs["w_empty"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_pay"] + inputs["w_systems"] + inputs["w_furnishings"]
+        outputs["w_empty"] = w_airframe + inputs["w_hybrid_ptrain"] +  inputs["w_systems"] + inputs["w_furnishings"]
 
     def compute_partials(self, inputs, partials):
 
@@ -608,18 +608,18 @@ class ComputeWeights(om.Group):
                           promotes_inputs=["*"],
                           promotes_outputs=["*"])
         
-        self.connect("w_mto_calc", "w_mto")
+        #self.connect("w_mto_calc", "w_mto")
         self.connect("hybrid_ptrain_weight.compute_fuel_system_weight.w_fuel_system", "w_fuel_system")
         
         # Connect all weights to aircraft weight calculator
-        self.nonlinear_solver = om.NewtonSolver()
-        self.nonlinear_solver.options['maxiter'] = 20
-        self.nonlinear_solver.options['atol'] = 1e-6
-        self.nonlinear_solver.options['rtol'] = 1e-6
-        self.nonlinear_solver.options['solve_subsystems'] = True
+        #self.nonlinear_solver = om.NewtonSolver()
+        #self.nonlinear_solver.options['maxiter'] = 20
+        #self.nonlinear_solver.options['atol'] = 1e-6
+        #self.nonlinear_solver.options['rtol'] = 1e-6
+        #self.nonlinear_solver.options['solve_subsystems'] = True
 
         # Add linear solver
-        self.linear_solver = om.DirectSolver()
+        #self.linear_solver = om.DirectSolver()
     
 
 

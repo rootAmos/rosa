@@ -1,6 +1,6 @@
 import numpy as np
 import openmdao.api as om
-
+import pdb
 class Cruise(om.ExplicitComponent):
     """Computes required thrust for steady flight at any flight path angle."""
     
@@ -51,6 +51,8 @@ class Cruise(om.ExplicitComponent):
         # Required thrust
         drag = 0.5 * rho * vel**2 * s_ref * CD  # Drag
         thrust = drag + w_mto * np.sin(gamma)  # Thrust required
+
+        #pdb.set_trace()
         
         # Pack outputs
         outputs['thrust_total'] = thrust

@@ -71,17 +71,18 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
         self.declare_partials('w_fuel', '*', method='exact')
 
         # Add nonlinear solver
-        self.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
-        self.linear_solver = om.DirectSolver()
+        # self.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
+        #self.nonlinear_solver = om.NonlinearBlockGS()
+        #self.linear_solver = om.DirectSolver()
 
-        self.nonlinear_solver.options['maxiter'] = 100
-        self.nonlinear_solver.options['atol'] = 1e-8
-        self.nonlinear_solver.options['rtol'] = 1e-8
-        self.nonlinear_solver.options['iprint'] = 2  # Print iteration info
+        #self.nonlinear_solver.options['maxiter'] = 100
+        #self.nonlinear_solver.options['atol'] = 1e-8
+        #self.nonlinear_solver.options['rtol'] = 1e-8
+        #self.nonlinear_solver.options['iprint'] = 2  # Print iteration info
         
         # Add line search to help with convergence
-        self.nonlinear_solver.linesearch = om.ArmijoGoldsteinLS()
-        self.nonlinear_solver.linesearch.options['bound_enforcement'] = 'scalar'
+        #self.nonlinear_solver.linesearch = om.ArmijoGoldsteinLS()
+        #self.nonlinear_solver.linesearch.options['bound_enforcement'] = 'scalar'
         
         # Add linear solver
 
@@ -236,4 +237,4 @@ if __name__ == "__main__":
     # Verify the solution by computing range with the solved epsilon
     achieved_range = ConvergeTurboCruiseRange._compute_range(None, inputs, w_fuel)/1000
     print(f'Back calculated range: {achieved_range:.1f} km')
-    #prob.check_partials(compact_print=True)
+    prob.check_partials(compact_print=True)

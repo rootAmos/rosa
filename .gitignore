@@ -2,3 +2,13 @@
 /path/
 /py-cache/
 *.html
+*.pyc
+solvevtolaircraft_out/
+computeweights_out/*
+cruisemaxefficiency_out/*
+computeturbocruiserange_out/*
+computeturbocruiserange_out/*
+computeamos_out/*
+computehover_out/
+
+

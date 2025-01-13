@@ -176,11 +176,11 @@ class HoverEnergyAnalysis(om.Group):
 
 
         # Add nonlinear solver
-        self.nonlinear_solver = om.NonlinearBlockGS()
-        self.nonlinear_solver.options['maxiter'] = 50
+        #self.nonlinear_solver = om.NonlinearBlockGS()
+        #self.nonlinear_solver.options['maxiter'] = 50
         
         # Add linear solver for calculating derivatives
-        self.linear_solver = om.DirectSolver()
+        #self.linear_solver = om.DirectSolver()
 
 if __name__ == "__main__":
     # Create problem
@@ -196,18 +196,21 @@ if __name__ == "__main__":
     ivc.add_output("eta_motor", val=0.95)
     ivc.add_output("d_blades", val=3.0, units="m")
     ivc.add_output("d_hub", val=1.0, units="m")
-    ivc.add_output("vel", val=1e-9, units="m/s")
     ivc.add_output("eta_cable", val=0.98)
     ivc.add_output("eta_pe", val=0.95)
     ivc.add_output("eta_gen", val=0.95)
     ivc.add_output("eta_prop", val=0.8)
+    ivc.add_output("eta_hover", val=0.8)
     ivc.add_output("rho", val=1.225, units="kg/m**3")
     
     # Build the model
     model = prob.model
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
-    model.connect("n_lift_props", "n_motors")
-    model.connect("w_mto", "thrust_total")
+    model.connect("n_lift_props", "hoverpropeller.n_motors")
+    model.connect("w_mto", "hoverpropeller.thrust_total")
+    model.connect("d_blades", "hoverpropeller.d_blades")
+    model.connect("d_hub", "hoverpropeller.d_hub")
+    model.connect("n_lift_props", "computehover.n_lift_props")
     model.add_subsystem('hover', HoverEnergyAnalysis(), promotes_inputs=["*"])
     
     # Setup problem
@@ -221,11 +224,11 @@ if __name__ == "__main__":
     
     # Print results
     print('\nHover Energy Results:')
-    print('Total Propulsive Power:', prob.get_val('hover.p_shaft_unit')[0] * prob.get_val('hover.n_motors')[0] /1000, 'kW')
+    print('Total Propulsive Power:', prob.get_val('hover.hoverpropeller.p_shaft_unit')[0] * prob.get_val('hover.hoverpropeller.n_motors')[0] /1000, 'kW')
     print('bat Energy Required:', prob.get_val('hover.e_bat')[0]/3.6e6, 'kWh')
     print('bat Power:', prob.get_val('hover.p_bat')[0]/1000, 'kW')
     print('Generator Power (each):', prob.get_val('hover.p_gen_unit')[0]/1000, 'kW')
     print('Gas Turbine Power (each):', prob.get_val('hover.p_turbine_unit')[0]/1000, 'kW')
     
     # Check partials
-    prob.check_partials(compact_print=True) 
+    #prob.check_partials(compact_print=True) 

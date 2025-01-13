@@ -3,42 +3,41 @@ from __future__ import annotations
 import numpy as np
 import openmdao.api as om
 from typing import Any
-import pdb
+
+from formatmassresults import FormatMassResults
+
 from computehover import HoverEnergyAnalysis
 from cruisemaxpower import CruiseMaxpower
 from cruisemaxefficiency import CruiseMaxEfficiency
-
 from computeweights import ComputeWeights
 from computeamos import ComputeAtmos
-from convergeturbocruiserange import ConvergeTurboCruiseRange
+from computeturbocruiserange import ComputeTurboCruiseRange
+from plotoptimization import plot_optimization_history
+
 
 
 class MTOMMargin(om.ExplicitComponent):
-    """Computes margin between MTOM and sum of empty weight, fuel weight, and payload"""
+    """Computes margin between specified MTOM and calculated MTOM"""
     
     def setup(self):
-        self.add_input('w_mto', val=1.0, units='N', desc='Maximum takeoff weight')
-        self.add_input('w_empty', val=1.0, units='N', desc='Empty weight')
-        self.add_input('w_fuel', val=1.0, units='N', desc='Fuel weight')
-        self.add_input('w_pay', val=1.0, units='N', desc='Payload weight')
-        self.add_input
+        self.add_input('w_mto', val=1.0, units='N', desc='Specified maximum takeoff weight')
+        self.add_input('w_mto_calc', val=1.0, units='N', desc='Calculated maximum takeoff weight')
         
-        self.add_output('mtom_margin', units='N', desc='Margin between MTOM and sum of weights')
+        self.add_output('mtom_margin', val=1.0, units='N', desc='Margin between specified and calculated MTOM')
         
     def setup_partials(self):
-        self.declare_partials('mtom_margin', ['w_mto', 'w_empty', 'w_fuel', 'w_pay'])
+        self.declare_partials('mtom_margin', ['w_mto', 'w_mto_calc'])
         
     def compute(self, inputs, outputs):
-        outputs['mtom_margin'] = inputs['w_mto'] - inputs['w_empty'] - inputs['w_fuel'] - inputs['w_pay']
+        outputs['mtom_margin'] = inputs['w_mto'] - inputs['w_mto_calc']
         
     def compute_partials(self, inputs, partials):
         partials['mtom_margin', 'w_mto'] = 1.0
-        partials['mtom_margin', 'w_empty'] = -1.0
-        partials['mtom_margin', 'w_fuel'] = -1.0
-        partials['mtom_margin', 'w_pay'] = -1.0
+        partials['mtom_margin', 'w_mto_calc'] = -1.0
 
 
-class ConvergeAircraft(om.Group):
+
+class SolveAircraft(om.Group):
     """
     Global sizing loop that converges aircraft MTOM through power, range, and weight calculations.
     """
@@ -46,9 +45,10 @@ class ConvergeAircraft(om.Group):
     
     def setup(self):
         # Add hover power and energy calculation
-        self.set_input_defaults("w_mto", 5500*9.8, units="N")
-        self.set_input_defaults("w_fuel", 150*9.8, units="N")
-        
+
+        # Fix Fuel ambiguity
+        self.set_input_defaults("w_fuel", val=150*9.81, units="N")
+
         self.add_subsystem("atmos", ComputeAtmos(), 
                            promotes_inputs=["*"], 
                            promotes_outputs=["*"])
@@ -56,8 +56,6 @@ class ConvergeAircraft(om.Group):
         self.add_subsystem("hover",
                           HoverEnergyAnalysis(),
                           promotes_inputs=["*"], promotes_outputs=["*"])
-        
-
         
         self.add_subsystem("cruisemaxpow", CruiseMaxpower(), 
                            promotes_inputs=["cd0","e","s_ref","gamma","rho","w_mto","epsilon_r","ar_w","eta_fan","eta_duct","n_fans"], 
@@ -69,7 +67,7 @@ class ConvergeAircraft(om.Group):
 
         
         self.add_subsystem("cruiserange",
-                          ConvergeTurboCruiseRange(),
+                          ComputeTurboCruiseRange(),
                           promotes_inputs=["*"],
                           promotes_outputs=["*"])
 
@@ -86,9 +84,9 @@ class ConvergeAircraft(om.Group):
                           promotes_outputs=["*"])
         
         
+        
         self.connect("cruisemaxeff.cruise.CL", "cl")
         self.connect("cruisemaxeff.cruise.CD", "cd")
-        self.connect("w_mto_calc", ["w_mto","hoverpropeller.thrust_total"])
         self.connect("cruisemaxpow.p_shaft_unit", ["p_fan_shaft_max","compute_fan_weight.p_shaft"])
         self.connect("hoverpropeller.p_shaft_unit", ["p_prop_shaft_max","compute_prop_weight.p_shaft"])
 
@@ -105,11 +103,21 @@ class ConvergeAircraft(om.Group):
 if __name__ == "__main__":
     # Create problem
     prob = om.Problem(reports=False)
-
+    
+    # Create model
+    model = prob.model
+    
+    # Add independent variables
     ivc = om.IndepVarComp()
 
-    
+    # Initial fuel calculations
+    g = 9.806
     q_cruise = 1.225 * 0.5 * 60**2
+    m_fuel = 150
+    w_fuel = m_fuel * g
+    rho_fuel = 800
+    v_fuel_m3 = m_fuel / rho_fuel
+    v_fuel_gal = v_fuel_m3 * 264.172
 
     # WingWeight inputs
     ivc.add_output("n_ult", val=3.75, units=None, desc="Ultimate load factor")
@@ -154,24 +162,22 @@ if __name__ == "__main__":
     # Electrical system inputs
     ivc.add_output("n_gens", val=2.0)
 
-    ivc.add_output("w_pay", val=6*200.0, units="lbf", desc="Payload weight")
+    ivc.add_output("w_pay", val=4*200.0, units="lbf", desc="Payload weight")
     
     # Power/energy densities
     ivc.add_output("sp_motor", val=15000.0, units="W/kg")
     ivc.add_output("sp_pe", val=10000.0, units="W/kg")
     ivc.add_output("sp_cbl", val=20000.0, units="W/kg")
     ivc.add_output("sp_bat", val=2000.0, units="W/kg")
-    ivc.add_output("se_bat", val=200.0, units="W*h/kg")
+    ivc.add_output("se_bat", val=500.0, units="W*h/kg")
     ivc.add_output("turbine_power_density", val=6000.0, units="W/kg")
     ivc.add_output("sp_gen", val=15000.0, units="W/kg")
     
     # Fuel system inputs
-    ivc.add_output("v_fuel_tot", val=30.0, units="galUS")
+    ivc.add_output("v_fuel_tot", val=v_fuel_gal, units="galUS")
     ivc.add_output("v_fuel_int", val=1e-6, units="galUS")
     ivc.add_output("n_tank", val=2.0)
-    
-    # Turbine inputs
-    
+        
     # Propeller inputs
     n_lift_motors = 8
     n_crz_motors = 2
@@ -204,8 +210,8 @@ if __name__ == "__main__":
     ivc.add_output("eta_hover", val=0.5, units=None)
 
 
-    ivc.add_output("cp", val=0.5/60/60/1000, units="kg/W/s")
-    ivc.add_output("target_range", val=400*1000.0, units="m")
+    ivc.add_output("cp", val=0.3/60/60/1000, units="kg/W/s")
+    ivc.add_output("target_range", val=150*1000.0, units="m")
 
     # Cruise
     ivc.add_output('cd0', val=0.02)
@@ -218,19 +224,23 @@ if __name__ == "__main__":
     # Hover
 
 
-    ivc.add_output('t_hover', val=120.0, units='s')
-    ivc.add_output('epsilon_hvr', val=0.95, units=None)
+    ivc.add_output('t_hover', val=30.0, units='s')
+    ivc.add_output('epsilon_hvr', val=0.4, units=None)
     ivc.add_output('n_lift_motors', val=n_lift_motors)
     ivc.add_output('n_crz_motors', val=n_crz_motors)
     ivc.add_output("n_motors", val=n_motors)
+
+    ivc.add_output('w_mto', val=5000*9.8, units='N')
+    ivc.add_output('w_fuel', val=w_fuel, units='N')
 
 
     # Build the model
     model = prob.model
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
-    model.add_subsystem('converge_aircraft', ConvergeAircraft(), promotes_inputs=["*"])
+    model.add_subsystem('solve_aircraft', SolveAircraft(), promotes_inputs=["*"], promotes_outputs=["*"])
 
 
+    # Connect Variables
     model.connect("k_prplsr", "compute_prop_weight.k_prplsr")
     model.connect("n_prop_blades", "compute_prop_weight.n_blades")
     model.connect("n_props", ["computehover.n_lift_props","hoverpropeller.n_motors", "compute_prop_weight.n_prplsrs"])
@@ -246,37 +256,68 @@ if __name__ == "__main__":
 
     model.connect("d_fan_hub", ["cruisemaxpow.d_hub","cruisemaxeff.d_hub"])
 
+    model.connect("w_mto", "hoverpropeller.thrust_total")
+
 
     # Add connections for CruiseMaxpower
     model.connect("v_max_speed", "cruisemaxpow.vel")
     model.connect("v_max_range",  "cruisemaxeff.vel")
 
  
+    # Setup optimization
+    prob.driver = om.pyOptSparseDriver()
+    prob.driver.options['optimizer'] = 'IPOPT'
+    
+    # Define design variable
+    model.add_design_var('w_fuel', lower=100.0, upper=10000.0, units='N')
+    #model.add_design_var('w_mto', lower=2000*g, upper=10000*g, units='N', ref=11000*g)
 
+    
+    # Define constraints
+    #model.add_constraint('solve_aircraft.fuel_margin', lower=1e-6)
+    model.add_constraint('mtom_margin', lower=1e-6)
+
+    
+    # Define objective
+    model.add_objective('range', scaler=-10000)
+    
     # Setup problem
     prob.setup()
 
-    prob.set_val("w_mto", 5500*9.8)
-    prob.set_val("w_fuel", 140*9.8)
-
-    model.add_constraint("mtom_margin", lower=1e-6)
+    om.n2(prob)
     
+    # Set up recorder
 
-    model.linear_solver = om.DirectSolver()
-    model.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
-    model.nonlinear_solver.options['maxiter'] = 50
-    model.nonlinear_solver.options['iprint'] = 2
-    model.nonlinear_solver.linesearch = om.ArmijoGoldsteinLS()
-    model.nonlinear_solver.linesearch.options['bound_enforcement'] = 'scalar'
-    om.n2(prob, show_browser=True)
+    recorder = om.SqliteRecorder('cases.sql')
+    prob.driver.add_recorder(recorder)
+    prob.driver.recording_options['includes'] = ['*']
+    prob.driver.recording_options['record_objectives'] = True
+    prob.driver.recording_options['record_constraints'] = True
+    prob.driver.recording_options['record_desvars'] = True
 
-    # Run model
-    prob.run_model()
+    
+    # Run optimization
+    prob.run_driver()
+
+    import pdb
+    #pdb.set_trace()
+
+    # Print Mass Breakdown results
+    #FormatMassResults.print_tables(prob)
+    #FormatMassResults.plot_results(prob)
     
     # Print results
-    print("\nAircraft Sizing Results:")
-    print("Final MTOM:", prob.get_val("converge.w_mto")[0]/9.81, "kg")
-    print("Fuel Weight:", prob.get_val("converge.cruise.fuel_weight.w_fuel")[0]/9.81, "kg")
-    
-    # Check model
-    prob.check_partials(compact_print=True) 
+    print("\Sizing Results:")
+    print(f"Fuel Weight: {prob.get_val('w_fuel')[0]/9.81:.1f} kg")
+    print(f"MTOM Set: {prob.get_val('w_mto')[0]/9.81:.1f} kg")
+    print(f"MTOM Calculated: {prob.get_val('w_mto_calc')[0]/9.81:.1f} kg")
+    print(f"MTOM Margin: {prob.get_val('mtom_margin')[0]/9.81:.1f} kg")
+
+    print(f"Range: {prob.get_val('range')[0]/1000:.1f} km")
+
+    plot_optimization_history('solvevtolaircraft_out/cases.sql')
+    #plt.show()
+
+    # Plot performance results with dark theme
+    #FormatPerfResults.plot_sizing_results(prob, style='dark')
+

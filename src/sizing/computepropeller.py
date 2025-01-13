@@ -1,6 +1,6 @@
 import numpy as np  
 import openmdao.api as om
-
+import pdb
 
 class HoverPropeller(om.ExplicitComponent):
     """
@@ -52,6 +52,7 @@ class HoverPropeller(om.ExplicitComponent):
         thrust_unit = thrust_total / n_motors 
 
         # Compute the power required [1] Eq 15-75
+        # pdb.set_trace()
         p_prplsv_unit = thrust_unit ** 1.5/ np.sqrt(2 * rho * diskarea)
    
 

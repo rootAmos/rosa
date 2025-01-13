@@ -40,5 +40,5 @@ class CruiseMaxEfficiency(om.Group):
         self.connect("thrust_total", "unit_thrust.thrust_total")
 
                 # Add nonlinear and linear solvers
-        self.nonlinear_solver = om.NonlinearBlockGS(maxiter=100, atol=1e-6, rtol=1e-6)
-        self.linear_solver = om.DirectSolver()
+        #self.nonlinear_solver = om.NonlinearBlockGS(maxiter=100, atol=1e-6, rtol=1e-6)
+        #self.linear_solver = om.DirectSolver()
