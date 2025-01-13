@@ -15,10 +15,10 @@ class HoverPropeller(om.ExplicitComponent):
 
         # Inputs    
         self.add_input('d_blades', val=1, desc='blade diameter', units='m')
-        self.add_input('d_hub', val=0.5, desc='hub diameter', units='m')
+        self.add_input('d_hub', val=1, desc='hub diameter', units='m')
         self.add_input('rho', val= 1, desc='air density', units='kg/m**3')
         self.add_input('thrust_total', val= 1, desc='total aircraft thrust required', units='N')
-        self.add_input('n_motors', val=2, desc='number of engines', units=None)
+        self.add_input('n_motors', val=1, desc='number of engines', units=None)
         self.add_input('eta_prop', val=1, desc='propeller efficiency', units=None) 
         self.add_input('eta_hover', val=1, desc='hover efficiency', units=None)
 

@@ -537,7 +537,7 @@ class AircraftWeight(om.ExplicitComponent):
         self.add_input("w_pay", val=1.0, units="N", desc="Payload weight")
         self.add_input("w_htail", val=1.0, units="N", desc="Horizontal tail weight")
         self.add_input("w_vtail", val=1.0, units="N", desc="Vertical tail weight")
-        
+        self.add_input("w_fuel", val=1.0, units="N", desc="Fuel weight")
 
         self.add_output("w_airframe", units="N",
                        desc="Total structural weight")
@@ -545,6 +545,8 @@ class AircraftWeight(om.ExplicitComponent):
         self.add_output("w_mto_calc", units="N",
                        desc="Total maximum takeoff weight")
         
+        self.add_output("w_empty", units="N",
+                       desc="Total empty weight")
 
         self.declare_partials("*", "*", method="exact")
         
@@ -552,11 +554,10 @@ class AircraftWeight(om.ExplicitComponent):
 
         w_airframe = inputs["w_wing"] + inputs["w_fuselage"] + inputs["w_htail"] + inputs["w_vtail"]
         outputs["w_airframe"] = w_airframe
-
-        #pdb.set_trace()
                              
-        outputs["w_mto_calc"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_pay"] + inputs["w_systems"] + inputs["w_furnishings"]
-        
+        outputs["w_mto_calc"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_pay"] + inputs["w_systems"] + inputs["w_furnishings"] + inputs["w_fuel"]
+        outputs["w_empty"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_pay"] + inputs["w_systems"] + inputs["w_furnishings"]
+
     def compute_partials(self, inputs, partials):
 
         partials["w_airframe", "w_wing"] = 1.0
@@ -567,6 +568,17 @@ class AircraftWeight(om.ExplicitComponent):
         partials["w_mto_calc", "w_pay"] = 1.0
         partials["w_mto_calc", "w_systems"] = 1.0
         partials["w_mto_calc", "w_furnishings"] = 1.0
+        partials["w_mto_calc", "w_fuel"] = 1.0
+
+        partials["w_airframe", "w_wing"] = 1.0
+        partials["w_airframe", "w_fuselage"] = 1.0
+        partials["w_airframe", "w_htail"] = 1.0
+        partials["w_airframe", "w_vtail"] = 1.0
+        partials["w_empty", "w_hybrid_ptrain"] = 1.0
+        partials["w_empty", "w_pay"] = 1.0
+        partials["w_empty", "w_systems"] = 1.0
+        partials["w_empty", "w_furnishings"] = 1.0
+        partials["w_empty", "w_fuel"] = 0.0
 
 
 class ComputeWeights(om.Group):
@@ -621,6 +633,12 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
 
     q_cruise = 1.225 * 0.5 * 60**2
+    g = 9.806
+    m_fuel = 600
+    w_fuel = m_fuel * g
+    rho_fuel = 800
+    v_fuel_m3 = m_fuel / rho_fuel
+    v_fuel_gal = v_fuel_m3 * 264.172
 
     # WingWeight inputs
     #ivc.add_output("w_mto", val=1.0, units="lbf", desc="Maximum takeoff weight")
@@ -631,7 +649,7 @@ if __name__ == "__main__":
     ivc.add_output("sweep_c_4_w", val=10/180 * np.pi, units="rad", desc="Wing quarter-chord sweep angle")
     ivc.add_output("q_cruise", val=q_cruise, units="Pa", desc="Cruise dynamic pressure")
     ivc.add_output("lambda_w", val=0.45, units=None, desc="Wing taper ratio")
-    ivc.add_output("w_fuel", val=600, units="lbf", desc="Weight of fuel in wings")
+    ivc.add_output("w_fuel", val=w_fuel, units="N", desc="Weight of fuel in wings")
 
     # HorizontalTailWeight inputs
     # (uses n_ult, w_mto, q_cruise, ar_w from above)
@@ -691,8 +709,8 @@ if __name__ == "__main__":
     ivc.add_output("sp_gen", val=3000.0, units="W/kg")
     
     # Fuel system inputs
-    ivc.add_output("v_fuel_tot", val=500.0, units="galUS")
-    ivc.add_output("v_fuel_int", val=400.0, units="galUS")
+    ivc.add_output("v_fuel_tot", val=v_fuel_gal, units="galUS")
+    ivc.add_output("v_fuel_int", val=1e-9, units="galUS")
     ivc.add_output("n_tank", val=2.0)
     
     # Turbine inputs

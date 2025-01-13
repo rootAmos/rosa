@@ -13,6 +13,30 @@ from computeamos import ComputeAtmos
 from convergeturbocruiserange import ConvergeTurboCruiseRange
 
 
+class MTOMMargin(om.ExplicitComponent):
+    """Computes margin between MTOM and sum of empty weight, fuel weight, and payload"""
+    
+    def setup(self):
+        self.add_input('w_mto', val=1.0, units='N', desc='Maximum takeoff weight')
+        self.add_input('w_empty', val=1.0, units='N', desc='Empty weight')
+        self.add_input('w_fuel', val=1.0, units='N', desc='Fuel weight')
+        self.add_input('w_pay', val=1.0, units='N', desc='Payload weight')
+        
+        self.add_output('mtom_margin', units='N', desc='Margin between MTOM and sum of weights')
+        
+    def setup_partials(self):
+        self.declare_partials('mtom_margin', ['w_mto', 'w_empty', 'w_fuel', 'w_pay'])
+        
+    def compute(self, inputs, outputs):
+        outputs['mtom_margin'] = inputs['w_mto'] - inputs['w_empty'] - inputs['w_fuel'] - inputs['w_pay']
+        
+    def compute_partials(self, inputs, partials):
+        partials['mtom_margin', 'w_mto'] = 1.0
+        partials['mtom_margin', 'w_empty'] = -1.0
+        partials['mtom_margin', 'w_fuel'] = -1.0
+        partials['mtom_margin', 'w_pay'] = -1.0
+
+
 class ConvergeAircraft(om.Group):
     """
     Global sizing loop that converges aircraft MTOM through power, range, and weight calculations.
@@ -53,6 +77,13 @@ class ConvergeAircraft(om.Group):
                           ComputeWeights(),
                           promotes_outputs=["*"],
                           promotes_inputs=["*"])
+        
+        # Add MTOM margin check
+        self.add_subsystem("mtom_margin",
+                          MTOMMargin(),
+                          promotes_inputs=["*"],
+                          promotes_outputs=["*"])
+        
         
         self.connect("cruisemaxeff.cruise.CL", "cl")
         self.connect("cruisemaxeff.cruise.CD", "cd")
@@ -228,7 +259,9 @@ if __name__ == "__main__":
     prob.set_val("w_mto", 5500*9.8)
     prob.set_val("w_fuel", 800*9.8)
 
-    model.add_constraint("w_fuel", lower=0.0)
+    model.add_constraint("mtom_margin", lower=1e-6)
+
+    om.n2(prob, show_browser=True)
     
     # Run model
     prob.run_model()

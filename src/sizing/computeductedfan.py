@@ -49,8 +49,8 @@ class ComputeDuctedfan(om.ExplicitComponent):
         self.add_input('n_fans', val=1, desc='number of fans', units=None)
 
         # Outputs
-        self.add_output('p_shaft_unit', val=0, desc='power required per engine', units='W')
-        self.add_output('eta_prplsv', val=0, desc='propulsive efficiency', units=None)
+        self.add_output('p_shaft_unit', val=1, desc='power required per engine', units='W')
+        self.add_output('eta_prplsv', val=1, desc='propulsive efficiency', units=None)
 
     def setup_partials(self):
         self.declare_partials('p_shaft_unit', '*')

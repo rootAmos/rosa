@@ -64,7 +64,7 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
                       desc="Target range")
 
         # Add state variable (epsilon)
-        self.add_output("w_fuel", val=1.0, units="N",
+        self.add_output("w_fuel", val=1.0, units="N", 
                        desc="fuel mass required")
 
         # Declare partials

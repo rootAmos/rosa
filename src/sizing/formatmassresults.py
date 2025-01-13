@@ -15,7 +15,8 @@ class FormatMassResults:
             'Airframe': to_kg(prob.get_val('weights.w_airframe')[0], True),
             'Systems': to_kg(prob.get_val('weights.systems_weight.w_systems')[0], True),
             'Powertrain': to_kg(prob.get_val('weights.hybrid_ptrain_weight.w_hybrid_ptrain')[0], True),
-            'Payload': to_kg(prob.get_val('w_pay')[0], False)
+            'Payload': to_kg(prob.get_val('w_pay')[0], False),
+            'Fuel': to_kg(prob.get_val('w_fuel')[0], True)
         }
 
         detailed_categories = {
@@ -37,7 +38,8 @@ class FormatMassResults:
             'Fuel System': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_fuel_system_weight.w_fuel_system')[0], False),
             'Fans': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_fan_weight.w_propulsor')[0], True),
             'Propellers': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_prop_weight.w_propulsor')[0], True),
-            'Payload': to_kg(prob.get_val('w_pay')[0], False)
+            'Payload': to_kg(prob.get_val('w_pay')[0], False),
+            'Fuel': to_kg(prob.get_val('w_fuel')[0], True)
         }
         
         return major_categories, detailed_categories
@@ -45,54 +47,69 @@ class FormatMassResults:
     @staticmethod
     def plot_results(prob):
         major_categories, detailed_categories = FormatMassResults.get_weight_categories(prob)
-        total_weight = sum(detailed_categories.values())
-
-        # MATLAB default colors
-        matlab_colors = [
-            '#0072BD',  # Dark blue
-            '#D95319',  # Dark orange
-            '#EDB120',  # Dark yellow
-            '#7E2F8E',  # Dark purple
-            '#77AC30',  # Medium green
-            '#4DBEEE',  # Light blue
-            '#A2142F'   # Dark red
-        ]
         
-        # Extend the color list if we need more colors
-        detailed_colors = matlab_colors * 3  # Multiply list to ensure enough colors
+        # Sort categories by value while keeping labels and values paired
+        def alternate_sort(d):
+            # Sort items by value
+            items = sorted(d.items(), key=lambda x: x[1], reverse=True)
+            n = len(items)
+            result = []
+            # Alternate between largest and smallest
+            for i in range((n + 1) // 2):
+                result.append(items[i])  # Add from front
+                if i + (n//2) < n:
+                    result.append(items[-(i + 1)])  # Add from back
+            # Return labels and values separately but maintaining correspondence
+            labels, values = zip(*result)
+            return list(labels), list(values)
+        
+        major_labels, major_values = alternate_sort(major_categories)
+        detailed_labels, detailed_values = alternate_sort(detailed_categories)
 
         # First figure - Major Categories
-        fig1 = plt.figure(figsize=(10, 8))
+        fig1 = plt.figure(figsize=(12, 8))
         ax1 = fig1.add_subplot(111)
-        wedges1, texts1 = ax1.pie(major_categories.values(), 
-                                 labels=None,
-                                 colors=matlab_colors[:len(major_categories)])
+        
+        wedges1, texts1, autotexts1 = ax1.pie(major_values, 
+                                             labels=["" for _ in major_values],
+                                             autopct='%1.1f%%')
+        
+        # Add percentage and value labels manually
+        total = sum(major_values)
+        for i, autotext in enumerate(autotexts1):
+            pct = major_values[i]/total * 100
+            autotext.set_text(f'{pct:.1f}%\n({major_values[i]:.1f} kg)')
+            
         ax1.set_title('Major Weight Categories')
+        plt.setp(autotexts1, color='white', size=8)
         
-        # Create legend labels with mass and percentages for major categories
-        major_legend_labels = [f"{component} ({value:.1f} kg, {value/total_weight*100:.1f}%)"
-                             for component, value in major_categories.items()]
-        
-        ax1.legend(wedges1, major_legend_labels,
+        # Add legend to first figure
+        ax1.legend(wedges1, major_labels,
                   title="Categories",
                   loc="center left",
                   bbox_to_anchor=(1, 0, 0.5, 1))
         plt.tight_layout()
 
         # Second figure - Detailed Breakdown
-        fig2 = plt.figure(figsize=(12, 8))
+        fig2 = plt.figure(figsize=(14, 8))
         ax2 = fig2.add_subplot(111)
-        wedges2, texts2 = ax2.pie(detailed_categories.values(),
-                                 labels=None,
-                                 colors=detailed_colors[:len(detailed_categories)])
+        
+        wedges2, texts2, autotexts2 = ax2.pie(detailed_values,
+                                             labels=["" for _ in detailed_values],
+                                             autopct='%1.1f%%')
+        
+        # Add percentage and value labels manually
+        total = sum(detailed_values)
+        for i, autotext in enumerate(autotexts2):
+            pct = detailed_values[i]/total * 100
+            autotext.set_text(f'{pct:.1f}%\n({detailed_values[i]:.1f} kg)')
+            
         ax2.set_title('Detailed Weight Breakdown')
+        plt.setp(autotexts2, color='white', size=8)
         
-        # Create legend labels with mass and percentages for detailed categories
-        legend_labels = [f"{component} ({value:.1f} kg, {value/total_weight*100:.1f}%)"
-                        for component, value in detailed_categories.items()]
-        
-        ax2.legend(wedges2, legend_labels,
-                  title="Components",
+        # Add legend to second figure
+        ax2.legend(wedges2, detailed_labels,
+                  title="Categories",
                   loc="center left",
                   bbox_to_anchor=(1, 0, 0.5, 1))
         plt.tight_layout()
