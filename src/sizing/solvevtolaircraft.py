@@ -284,7 +284,7 @@ if __name__ == "__main__":
     # Setup problem
     prob.setup()
 
-    om.n2(prob)
+    #om.n2(prob)
     
     # Set up recorder
 
@@ -315,7 +315,7 @@ if __name__ == "__main__":
 
     print(f"Range: {prob.get_val('range')[0]/1000:.1f} km")
 
-    plot_optimization_history('solvevtolaircraft_out/cases.sql')
+    #plot_optimization_history('solvevtolaircraft_out/cases.sql')
     #plt.show()
 
     # Plot performance results with dark theme

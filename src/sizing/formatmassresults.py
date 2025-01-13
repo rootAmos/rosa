@@ -24,10 +24,11 @@ class FormatMassResults:
             'Fuselage': to_kg(prob.get_val('w_fuselage')[0], False),
             'Horizontal Tail': to_kg(prob.get_val('w_htail')[0], False),
             'Vertical Tail': to_kg(prob.get_val('w_vtail')[0], False),
+            'Nacelles': to_kg(prob.get_val('hybrid_ptrain_weight.compute_nacelle_weight.w_nacelles')[0], True),  # Added nacelles
             'Landing Gear': to_kg(prob.get_val('w_lg')[0], False),
-            'Flight Controls': to_kg(prob.get_val('w_fcs')[0], True),
-            'Electrical': to_kg(prob.get_val('w_electrical')[0], True),
-            'Avionics': to_kg(prob.get_val('w_avionics')[0], True),
+            'Flight Controls': to_kg(prob.get_val('w_fcs')[0], False),
+            'Electrical': to_kg(prob.get_val('w_electrical')[0], False),
+            'Avionics': to_kg(prob.get_val('w_avionics')[0], False),
             'Furnishings': to_kg(prob.get_val('w_furnishings')[0], False),
             'Motors': to_kg(prob.get_val('hybrid_ptrain_weight.compute_elec_ptrain_weight.w_motors')[0], True),
             'Generators': to_kg(prob.get_val('hybrid_ptrain_weight.compute_elec_ptrain_weight.w_gens')[0], True),
@@ -142,4 +143,3 @@ class FormatMassResults:
             print(f"{component:<25} {mass:>12.1f} {percentage:>7.1f}%")
         print("-" * 45)
         print(f"{'Total':<25} {total_weight:>12.1f} {100:>7.1f}%")
-

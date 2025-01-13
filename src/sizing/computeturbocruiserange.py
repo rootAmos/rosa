@@ -1,6 +1,38 @@
 import openmdao.api as om
 import numpy as np
 
+class PropulsiveEfficiency(om.ExplicitComponent):
+    """Multiplies fan, duct, and propulsive efficiencies to get total propulsive efficiency."""
+    
+    def setup(self):
+        # Inputs
+        self.add_input('eta_fan', val=1.0, desc='Fan efficiency')
+        self.add_input('eta_duct', val=1.0, desc='Duct efficiency')
+        self.add_input('eta_prplsv', val=1.0, desc='isentropic propulsive efficiency')
+        
+        # Output
+        self.add_output('eta_pt', val=1.0, desc='Total propulsive efficiency')
+        
+        # Declare partials
+        self.declare_partials('eta_pt', ['eta_fan', 'eta_duct', 'eta_prplsv'])
+        
+    def compute(self, inputs, outputs):
+        eta_fan = inputs['eta_fan']
+        eta_duct = inputs['eta_duct']
+        eta_prplsv = inputs['eta_prplsv']
+        
+        outputs['eta_pt'] = eta_fan * eta_duct * eta_prplsv
+        
+    def compute_partials(self, inputs, partials):
+        eta_fan = inputs['eta_fan']
+        eta_duct = inputs['eta_duct']
+        eta_prplsv = inputs['eta_prplsv']
+        
+        partials['eta_pt', 'eta_fan'] = eta_duct * eta_prplsv
+        partials['eta_pt', 'eta_duct'] = eta_fan * eta_prplsv
+        partials['eta_pt', 'eta_prplsv'] = eta_fan * eta_duct
+        
+
 class ComputeTurboCruiseRange(om.ExplicitComponent):
     """
     Computes cruise range based on fuel weight using the Breguet range equation

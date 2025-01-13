@@ -2,7 +2,7 @@ import openmdao.api as om
 
 from computecruise import Cruise
 from computeductedfan import ComputeUnitThrust, ComputeDuctedfan
-from convergeturbocruiserange import PropulsiveEfficiency
+from computeturbocruiserange import PropulsiveEfficiency
 
 class CruiseMaxEfficiency(om.Group):
     """
