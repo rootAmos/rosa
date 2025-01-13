@@ -136,10 +136,6 @@ class ComputeDuctedfan(om.ExplicitComponent):
         partials['eta_prplsv', 'eta_fan'] = 0
         partials['eta_prplsv', 'eta_duct'] = 0
         
-
-
-
-
 if __name__ == "__main__":
     import openmdao.api as om
 

@@ -71,18 +71,19 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
         self.declare_partials('w_fuel', '*', method='exact')
 
         # Add nonlinear solver
-        newton = self.nonlinear_solver = om.NewtonSolver(solve_subsystems=False)
-        newton.options['maxiter'] = 50
-        newton.options['atol'] = 1e-8
-        newton.options['rtol'] = 1e-8
-        newton.options['iprint'] = 2  # Print iteration info
+        self.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
+        self.linear_solver = om.DirectSolver()
+
+        self.nonlinear_solver.options['maxiter'] = 100
+        self.nonlinear_solver.options['atol'] = 1e-8
+        self.nonlinear_solver.options['rtol'] = 1e-8
+        self.nonlinear_solver.options['iprint'] = 2  # Print iteration info
         
         # Add line search to help with convergence
-        newton.linesearch = om.BoundsEnforceLS()
-        newton.linesearch.options['bound_enforcement'] = 'scalar'
+        self.nonlinear_solver.linesearch = om.ArmijoGoldsteinLS()
+        self.nonlinear_solver.linesearch.options['bound_enforcement'] = 'scalar'
         
         # Add linear solver
-        self.linear_solver = om.DirectSolver()
 
     def apply_nonlinear(self, inputs, outputs, residuals):
         """Compute residual between actual and target range."""
@@ -132,25 +133,33 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
         cp = inputs["cp"]
         w_mto = inputs["w_mto"]
 
-        partials["w_fuel", "w_fuel"] = (cl*eta_gen*eta_pe*eta_m*eta_pt)/(cd*cp*(w_mto - w_fuel))
+        partials["w_fuel", "w_fuel"] = -(cl*eta_gen*eta_pe*eta_m*eta_pt)/(cd*cp*g*(w_fuel - w_mto))
 
         partials["w_fuel", "target_range"] = -1.0
         
-        partials["w_fuel", "cl"] = -(eta_gen*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
+        partials["w_fuel", "cl"] = -(eta_gen*eta_pe*eta_m*eta_pt*np.log(-(w_fuel - w_mto)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "cd"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd**2*cp*g)
 
-        partials["w_fuel", "eta_pe"] = -(cl*eta_gen*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
+        partials["w_fuel", "cd"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*np.log(-(w_fuel - w_mto)/w_mto))/(cd**2*cp*g)
 
-        partials["w_fuel", "eta_motor"] = -(cl*eta_gen*eta_pe*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "eta_pt"] = -(cl*eta_gen*eta_pe*eta_m*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
+        partials["w_fuel", "eta_pe"] = -(cl*eta_gen*eta_m*eta_pt*np.log(-(w_fuel - w_mto)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "eta_gen"] = -(cl*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "cp"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp**2*g)
+        partials["w_fuel", "eta_motor"] = -(cl*eta_gen*eta_pe*eta_pt*np.log(-(w_fuel - w_mto)/w_mto))/(cd*cp*g)
+
+
+        partials["w_fuel", "eta_pt"] = -(cl*eta_gen*eta_pe*eta_m*np.log(-(w_fuel - w_mto)/w_mto))/(cd*cp*g)
+
+
+        partials["w_fuel", "eta_gen"] = -(cl*eta_pe*eta_m*eta_pt*np.log(-(w_fuel - w_mto)/w_mto))/(cd*cp*g)
+
+
+        partials["w_fuel", "cp"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*np.log(-(w_fuel - w_mto)/w_mto))/(cd*cp**2*g)
+
 
         partials["w_fuel", "w_mto"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*w_mto*(1/w_mto + (w_fuel - w_mto)/w_mto**2))/(cd*cp*g*(w_fuel - w_mto))
+
 
 if __name__ == "__main__":
     import openmdao.api as om
@@ -167,8 +176,8 @@ if __name__ == "__main__":
     ivc.add_output("eta_pt", val=0.85, units=None)
     ivc.add_output("eta_gen", val=0.95, units=None)
     ivc.add_output("cp", val=0.5/60/60/1000, units="kg/W/s")
-    ivc.add_output("w_mto", val=5500.0*9.806, units="N")
-    ivc.add_output("target_range", val=1030*1000.0, units="m")
+    ivc.add_output("w_mto", val=5000.0*9.806, units="N")
+    ivc.add_output("target_range", val=800*1000.0, units="m")
     
     # Build the model
     model = prob.model
@@ -178,8 +187,17 @@ if __name__ == "__main__":
     # Setup problem
     prob.setup()
     
+    model.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
+    model.linear_solver = om.DirectSolver()
+    model.nonlinear_solver.options['maxiter'] = 100
+    model.nonlinear_solver.options['atol'] = 1e-8
+    model.nonlinear_solver.options['rtol'] = 1e-8
+    model.nonlinear_solver.options['iprint'] = 2  # Print iteration info
+    
     # Generate N2 diagram
-    # om.n2(prob)
+    #om.n2(prob)
+
+    prob.set_val('cruise_analysis.w_fuel', 500*9.8)
     
  
 
@@ -207,7 +225,7 @@ if __name__ == "__main__":
     inputs["cl"] = prob.get_val('cruise_analysis.cl')[0]
     inputs["cd"] = prob.get_val('cruise_analysis.cd')[0]
     inputs["eta_pe"] = prob.get_val('cruise_analysis.eta_pe')[0]
-    inputs["eta_motor"] = prob.get_val('cruise_analysis.eta_m')[0]
+    inputs["eta_motor"] = prob.get_val('cruise_analysis.eta_motor')[0]
     inputs["eta_pt"] = prob.get_val('cruise_analysis.eta_pt')[0]
     inputs["eta_gen"] = prob.get_val('cruise_analysis.eta_gen')[0]
     inputs["cp"] = prob.get_val('cruise_analysis.cp')[0]
@@ -218,4 +236,4 @@ if __name__ == "__main__":
     # Verify the solution by computing range with the solved epsilon
     achieved_range = ConvergeTurboCruiseRange._compute_range(None, inputs, w_fuel)/1000
     print(f'Back calculated range: {achieved_range:.1f} km')
-    prob.check_partials(compact_print=True)
+    #prob.check_partials(compact_print=True)

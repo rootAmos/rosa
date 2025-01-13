@@ -583,11 +583,11 @@ class ComputeWeights(om.Group):
         self.add_subsystem("wing_weight", WingWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("fuselage_weight", FuselageWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("landing_gear_weight", LandingGearWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
-        self.add_subsystem("furnishings_refeight", FurnishingsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
-        self.add_subsystem("avionics_refeight", AvionicsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("furnishings_weight", FurnishingsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("avionics_weight", AvionicsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("flight_control_system_weight", FlightControlSystemWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("electrical_system_weight", ElectricalSystemWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
-        self.add_subsystem("systems_refeight", SystemsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("systems_weight", SystemsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
 
 
         # Add aircraft weight calculator
@@ -597,7 +597,7 @@ class ComputeWeights(om.Group):
                           promotes_outputs=["*"])
         
         self.connect("w_mto_calc", "w_mto")
-        self.connect("hybrid_ptrain_weight.fuel_system.w_fuel_system", "w_fuel_system")
+        self.connect("hybrid_ptrain_weight.compute_fuel_system_weight.w_fuel_system", "w_fuel_system")
         
         # Connect all weights to aircraft weight calculator
         self.nonlinear_solver = om.NewtonSolver()
@@ -699,10 +699,10 @@ if __name__ == "__main__":
     ivc.add_output("p_turbine_unit", val=1000.0, units="hp")
 
     # Propeller inputs
-    ivc.add_output("n_props", val=2.0)
+    ivc.add_output("n_prplsrs", val=2.0)
     ivc.add_output("d_prop_blades", val=2.5, units="m")
     ivc.add_output("p_prop_shaft_max", val=250000.0, units="W")
-    ivc.add_output("k_prop", val=31.92)
+    ivc.add_output("k_prplsr", val=31.92)
     ivc.add_output("n_prop_blades", val=5.0)
 
     # Ducted Fan inputs
@@ -719,17 +719,17 @@ if __name__ == "__main__":
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
     model.add_subsystem('weights', ComputeWeights(), promotes_inputs=["*"])
 
-    model.connect("n_props", "propeller.n_props")
-    model.connect("d_prop_blades", "propeller.d_blades")
-    model.connect("p_prop_shaft_max", "propeller.p_shaft")
-    model.connect("k_prop", "propeller.k_prop")
-    model.connect("n_prop_blades", "propeller.n_blades")
+    model.connect("n_prplsrs", "compute_prop_weight.n_prplsrs")
+    model.connect("d_prop_blades", "compute_prop_weight.d_blades")
+    model.connect("p_prop_shaft_max", "compute_prop_weight.p_shaft")
+    model.connect("k_prplsr", "compute_prop_weight.k_prplsr")
+    model.connect("n_prop_blades", "compute_prop_weight.n_blades")
 
-    model.connect("n_fans", "fan.n_props")
-    model.connect("d_fan_blades", "fan.d_blades")
-    model.connect("p_fan_shaft_max", "fan.p_shaft")
-    model.connect("k_fan", "fan.k_prop")
-    model.connect("n_fan_blades", "fan.n_blades")
+    model.connect("n_fans", "compute_fan_weight.n_prplsrs")
+    model.connect("d_fan_blades", "compute_fan_weight.d_blades")
+    model.connect("p_fan_shaft_max", "compute_fan_weight.p_shaft")
+    model.connect("k_fan", "compute_fan_weight.k_prplsr")
+    model.connect("n_fan_blades", "compute_fan_weight.n_blades")
     
     # Setup problem
     prob.setup()

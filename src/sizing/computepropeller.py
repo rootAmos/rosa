@@ -190,7 +190,6 @@ class CruisePropeller(om.ExplicitComponent):
 
 
 
-
 if __name__ == "__main__":
     import openmdao.api as om
 

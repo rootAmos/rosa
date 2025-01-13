@@ -13,7 +13,7 @@ class FormatMassResults:
         
         major_categories = {
             'Airframe': to_kg(prob.get_val('weights.w_airframe')[0], True),
-            'Systems': to_kg(prob.get_val('weights.systems_refeight.w_systems')[0], True),
+            'Systems': to_kg(prob.get_val('weights.systems_weight.w_systems')[0], True),
             'Powertrain': to_kg(prob.get_val('weights.hybrid_ptrain_weight.w_hybrid_ptrain')[0], True),
             'Payload': to_kg(prob.get_val('w_pay')[0], False)
         }
@@ -28,15 +28,15 @@ class FormatMassResults:
             'Electrical': to_kg(prob.get_val('weights.w_electrical')[0], True),
             'Avionics': to_kg(prob.get_val('weights.w_avionics')[0], True),
             'Furnishings': to_kg(prob.get_val('weights.w_furnishings')[0], False),
-            'Motors': to_kg(prob.get_val('weights.hybrid_ptrain_weight.elec_powertrain.w_motors')[0], True),
-            'Generators': to_kg(prob.get_val('weights.hybrid_ptrain_weight.elec_powertrain.w_gens')[0], True),
-            'Power Electronics': to_kg(prob.get_val('weights.hybrid_ptrain_weight.elec_powertrain.w_pe')[0], True),
-            'Cables': to_kg(prob.get_val('weights.hybrid_ptrain_weight.elec_powertrain.w_cbls')[0], True),
-            'Batteries': to_kg(prob.get_val('weights.hybrid_ptrain_weight.elec_powertrain.w_bat')[0], True),
-            'Turbines': to_kg(prob.get_val('weights.hybrid_ptrain_weight.turbine_engine.w_turbines')[0], True),
-            'Fuel System': to_kg(prob.get_val('weights.hybrid_ptrain_weight.fuel_system.w_fuel_system')[0], False),
-            'Fans': to_kg(prob.get_val('weights.hybrid_ptrain_weight.fan.w_propulsor')[0], True),
-            'Propellers': to_kg(prob.get_val('weights.hybrid_ptrain_weight.propeller.w_propulsor')[0], True),
+            'Motors': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_elec_ptrain_weight.w_motors')[0], True),
+            'Generators': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_elec_ptrain_weight.w_gens')[0], True),
+            'Power Electronics': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_elec_ptrain_weight.w_pe')[0], True),
+            'Cables': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_elec_ptrain_weight.w_cbls')[0], True),
+            'Batteries': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_elec_ptrain_weight.w_bat')[0], True),
+            'Turbines': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_turbine_weight.w_turbines')[0], True),
+            'Fuel System': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_fuel_system_weight.w_fuel_system')[0], False),
+            'Fans': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_fan_weight.w_propulsor')[0], True),
+            'Propellers': to_kg(prob.get_val('weights.hybrid_ptrain_weight.compute_prop_weight.w_propulsor')[0], True),
             'Payload': to_kg(prob.get_val('w_pay')[0], False)
         }
         

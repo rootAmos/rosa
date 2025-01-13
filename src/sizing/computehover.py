@@ -42,6 +42,10 @@ class ComputeHover(om.ExplicitComponent):
                        desc="Maximum power per generator")
         self.add_output("p_turbine_unit", units="W",
                        desc="Gas turbine power required")
+        self.add_output("p_motor", units="W",
+                       desc="Unit motor power required")
+        self.add_output("p_elec", units="W",
+                       desc="Total electrical power required")
         
     def setup_partials(self):
         
@@ -55,6 +59,8 @@ class ComputeHover(om.ExplicitComponent):
         electrical_power = shaft_power_total / (
             inputs["eta_motor"] * inputs["eta_cable"] * inputs["eta_pe"]
         )
+
+        p_motor_unit = inputs["p_shaft_unit"] / inputs["eta_motor"] 
         
         # Split power between bat and generator based on hybridization ratio
         p_bat = electrical_power * inputs["epsilon_hvr"]
@@ -67,7 +73,8 @@ class ComputeHover(om.ExplicitComponent):
         outputs["p_bat"] = p_bat
         outputs["p_gen_unit"] = generator_power_total / inputs["n_gens"]
         outputs["p_turbine_unit"] = generator_power_total / inputs["eta_gen"] / inputs["n_gens"] # number of turbines equals number of gens
-        
+        outputs["p_elec"] = electrical_power
+        outputs["p_motor"] = p_motor_unit
     
     def compute_partials(self, inputs, partials):
         
@@ -77,6 +84,8 @@ class ComputeHover(om.ExplicitComponent):
         electrical_power = shaft_power_total / eta_elec
         p_bat = electrical_power * inputs["epsilon_hvr"]
         p_gen_total = electrical_power * (1 - inputs["epsilon_hvr"])
+        p_motor_unit = inputs["p_shaft_unit"] / inputs["eta_motor"] 
+
         
         # Partial derivatives for e_bat
         partials["e_bat", "p_shaft_unit"] = inputs["t_hover"] * inputs["epsilon_hvr"] / (
@@ -127,27 +136,43 @@ class ComputeHover(om.ExplicitComponent):
         partials["p_turbine_unit", "n_lift_props"] = p_gen_total / inputs["n_lift_props"] / inputs["eta_gen"] / inputs["n_gens"]
 
 
-class HoverEnergyGroup(om.Group):
+        partials["p_motor", "p_shaft_unit"] = 1 / inputs["eta_motor"]
+        partials["p_motor", "eta_motor"] = -p_motor_unit / inputs["eta_motor"]
+        partials["p_motor", "eta_cable"] = 0.0
+        partials["p_motor", "eta_pe"] = 0.0
+        partials["p_motor", "eta_gen"] = 0.0
+        partials["p_motor", "n_lift_props"] = 0.0
+        partials["p_motor", "n_gens"] = 0.0
+
+        partials["p_elec", "p_shaft_unit"] = 1 / eta_elec
+        partials["p_elec", "eta_motor"] = -electrical_power / inputs["eta_motor"]
+        partials["p_elec", "eta_cable"] = -electrical_power / inputs["eta_cable"]
+        partials["p_elec", "eta_pe"] = -electrical_power / inputs["eta_pe"]
+        partials["p_elec", "eta_gen"] = 0.0
+        partials["p_elec", "n_lift_props"] = 0.0
+        partials["p_elec", "n_gens"] = 0.0
+
+class HoverEnergyAnalysis(om.Group):
     """Group containing hover energy analysis components."""
     
     def setup(self):
 
         # Add propeller performance (from propeller.py)
-        self.add_subsystem("propeller",
+        self.add_subsystem("hoverpropeller",
                           HoverPropeller(),
-                          promotes_inputs=["*"], 
-                          promotes_outputs=["p_shaft_unit"])
+                          promotes_inputs=["rho","eta_prop","eta_hover"], 
+                          promotes_outputs=[])
         
         # Add power and energy computation
-        self.add_subsystem("power_energy",
+        self.add_subsystem("computehover",
                           ComputeHover(),
-                          promotes_inputs=["t_hover", "epsilon_hvr" ,"n_lift_props","p_shaft_unit",
+                          promotes_inputs=["t_hover", "epsilon_hvr" ,
                                          "n_gens", "eta_motor", "eta_cable",
                                          "eta_pe", "eta_gen"],
                           promotes_outputs=["*"])
         
         # Connect hover force to propeller thrust_total
-        #self.connect("n_lift_props", "n_motors")
+        self.connect("hoverpropeller.p_shaft_unit", "computehover.p_shaft_unit")
 
 
         # Add nonlinear solver
@@ -183,7 +208,7 @@ if __name__ == "__main__":
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
     model.connect("n_lift_props", "n_motors")
     model.connect("w_mto", "thrust_total")
-    model.add_subsystem('hover', HoverEnergyGroup(), promotes_inputs=["*"])
+    model.add_subsystem('hover', HoverEnergyAnalysis(), promotes_inputs=["*"])
     
     # Setup problem
     prob.setup()
