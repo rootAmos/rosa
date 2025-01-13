@@ -48,17 +48,17 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
                       desc="Lift coefficient")
         self.add_input("cd", val=1.0, units=None,
                       desc="Drag coefficient")
-        self.add_input("eta_i", val=1.0, units=None,
+        self.add_input("eta_pe", val=1.0, units=None,
                       desc="Inverter efficiency")
-        self.add_input("eta_m", val=1.0, units=None,
+        self.add_input("eta_motor", val=1.0, units=None,
                       desc="Motor efficiency")
         self.add_input("eta_pt", val=1.0, units=None,
                       desc="total propulsor efficiency incl fan, duct, and isentropic losses")
-        self.add_input("eta_g", val=1.0, units=None,
+        self.add_input("eta_gen", val=1.0, units=None,
                       desc="Generator efficiency")
         self.add_input("cp", val=1.0, units="kg/W/s",
                       desc="Shaft power specific fuel consumption")
-        self.add_input("wto_max", val=1.0, units="N",
+        self.add_input("w_mto", val=1.0, units="N",
                       desc="Maximum takeoff weight")
         self.add_input("target_range", val=1.0, units="m",
                       desc="Target range")
@@ -103,14 +103,14 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
         # Common terms
         cl = inputs["cl"]
         cd = inputs["cd"]
-        eta_i = inputs["eta_i"]
-        eta_m = inputs["eta_m"]
+        eta_pe = inputs["eta_pe"]
+        eta_m = inputs["eta_motor"]
         eta_pt = inputs["eta_pt"]
-        eta_g = inputs["eta_g"]
+        eta_gen = inputs["eta_gen"]
         cp = inputs["cp"]
-        wto_max = inputs["wto_max"]
+        w_mto = inputs["w_mto"]
         
-        range = -np.log( (wto_max - w_fuel)/ wto_max) * cl/cd * eta_g * eta_i * eta_m * eta_pt / g / cp;
+        range = -np.log( (w_mto - w_fuel)/ w_mto) * cl/cd * eta_gen * eta_pe * eta_m * eta_pt / g / cp;
 
         return range
     
@@ -125,32 +125,32 @@ class ConvergeTurboCruiseRange(om.ImplicitComponent):
         # Common terms
         cl = inputs["cl"]
         cd = inputs["cd"]
-        eta_i = inputs["eta_i"]
-        eta_m = inputs["eta_m"]
+        eta_pe = inputs["eta_pe"]
+        eta_m = inputs["eta_motor"]
         eta_pt = inputs["eta_pt"]
-        eta_g = inputs["eta_g"]
+        eta_gen = inputs["eta_gen"]
         cp = inputs["cp"]
-        wto_max = inputs["wto_max"]
+        w_mto = inputs["w_mto"]
 
-        partials["w_fuel", "w_fuel"] = (cl*eta_g*eta_i*eta_m*eta_pt)/(cd*cp*(wto_max - w_fuel))
+        partials["w_fuel", "w_fuel"] = (cl*eta_gen*eta_pe*eta_m*eta_pt)/(cd*cp*(w_mto - w_fuel))
 
         partials["w_fuel", "target_range"] = -1.0
         
-        partials["w_fuel", "cl"] = -(eta_g*eta_i*eta_m*eta_pt*np.log((wto_max - w_fuel)/wto_max))/(cd*cp*g)
+        partials["w_fuel", "cl"] = -(eta_gen*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "cd"] = (cl*eta_g*eta_i*eta_m*eta_pt*np.log((wto_max - w_fuel)/wto_max))/(cd**2*cp*g)
+        partials["w_fuel", "cd"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd**2*cp*g)
 
-        partials["w_fuel", "eta_i"] = -(cl*eta_g*eta_m*eta_pt*np.log((wto_max - w_fuel)/wto_max))/(cd*cp*g)
+        partials["w_fuel", "eta_pe"] = -(cl*eta_gen*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "eta_m"] = -(cl*eta_g*eta_i*eta_pt*np.log((wto_max - w_fuel)/wto_max))/(cd*cp*g)
+        partials["w_fuel", "eta_motor"] = -(cl*eta_gen*eta_pe*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "eta_pt"] = -(cl*eta_g*eta_i*eta_m*np.log((wto_max - w_fuel)/wto_max))/(cd*cp*g)
+        partials["w_fuel", "eta_pt"] = -(cl*eta_gen*eta_pe*eta_m*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "eta_g"] = -(cl*eta_i*eta_m*eta_pt*np.log((wto_max - w_fuel)/wto_max))/(cd*cp*g)
+        partials["w_fuel", "eta_gen"] = -(cl*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp*g)
 
-        partials["w_fuel", "cp"] = (cl*eta_g*eta_i*eta_m*eta_pt*np.log((wto_max - w_fuel)/wto_max))/(cd*cp**2*g)
+        partials["w_fuel", "cp"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*np.log((w_mto - w_fuel)/w_mto))/(cd*cp**2*g)
 
-        partials["w_fuel", "wto_max"] = (cl*eta_g*eta_i*eta_m*eta_pt*wto_max*(1/wto_max + (w_fuel - wto_max)/wto_max**2))/(cd*cp*g*(w_fuel - wto_max))
+        partials["w_fuel", "w_mto"] = (cl*eta_gen*eta_pe*eta_m*eta_pt*w_mto*(1/w_mto + (w_fuel - w_mto)/w_mto**2))/(cd*cp*g*(w_fuel - w_mto))
 
 if __name__ == "__main__":
     import openmdao.api as om
@@ -162,12 +162,12 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
     ivc.add_output("cl", val=0.5, units=None)
     ivc.add_output("cd", val=0.03, units=None)
-    ivc.add_output("eta_i", val=0.95, units=None)
-    ivc.add_output("eta_m", val=0.95, units=None)
+    ivc.add_output("eta_pe", val=0.95, units=None)
+    ivc.add_output("eta_motor", val=0.95, units=None)
     ivc.add_output("eta_pt", val=0.85, units=None)
-    ivc.add_output("eta_g", val=0.95, units=None)
+    ivc.add_output("eta_gen", val=0.95, units=None)
     ivc.add_output("cp", val=0.5/60/60/1000, units="kg/W/s")
-    ivc.add_output("wto_max", val=5500.0*9.806, units="N")
+    ivc.add_output("w_mto", val=5500.0*9.806, units="N")
     ivc.add_output("target_range", val=1030*1000.0, units="m")
     
     # Build the model
@@ -206,12 +206,12 @@ if __name__ == "__main__":
     inputs = {}
     inputs["cl"] = prob.get_val('cruise_analysis.cl')[0]
     inputs["cd"] = prob.get_val('cruise_analysis.cd')[0]
-    inputs["eta_i"] = prob.get_val('cruise_analysis.eta_i')[0]
-    inputs["eta_m"] = prob.get_val('cruise_analysis.eta_m')[0]
+    inputs["eta_pe"] = prob.get_val('cruise_analysis.eta_pe')[0]
+    inputs["eta_motor"] = prob.get_val('cruise_analysis.eta_m')[0]
     inputs["eta_pt"] = prob.get_val('cruise_analysis.eta_pt')[0]
-    inputs["eta_g"] = prob.get_val('cruise_analysis.eta_g')[0]
+    inputs["eta_gen"] = prob.get_val('cruise_analysis.eta_gen')[0]
     inputs["cp"] = prob.get_val('cruise_analysis.cp')[0]
-    inputs["wto_max"] = prob.get_val('cruise_analysis.wto_max')[0]
+    inputs["w_mto"] = prob.get_val('cruise_analysis.w_mto')[0]
     inputs["target_range"] = prob.get_val('cruise_analysis.target_range')[0]
     w_fuel = prob.get_val('cruise_analysis.w_fuel')[0]
 

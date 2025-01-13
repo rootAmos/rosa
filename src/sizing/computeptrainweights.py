@@ -59,7 +59,7 @@ class FuelSystemWeight(om.ExplicitComponent):
 
 
 
-class PropellerWeight(om.ExplicitComponent):
+class PropulsorWeight(om.ExplicitComponent):
     """Computes propeller weight.
 
     Gundlach Equation 6-54
@@ -68,18 +68,18 @@ class PropellerWeight(om.ExplicitComponent):
     def setup(self):
 
         self.add_input("k_prop", val=1.0, units=None,
-                      desc="Propeller weight scaling coefficient")
+                      desc="proplsor weight scaling coefficient")
         self.add_input("n_props", val=1.0, units=None,
-                      desc="Number of propellers")
+                      desc="Number of propulsors")
         self.add_input("n_blades", val=1.0, units=None,
                       desc="Number of blades")
         self.add_input("d_blades", val=1.0, units="ft",
                       desc="Propeller diameter")
         self.add_input("p_shaft", val=1.0, units="hp",
-                      desc="Shaft power per propeller")
+                      desc="Shaft power per propulsor")
         
-        self.add_output("w_props", units="N",
-                       desc="Propeller weight")
+        self.add_output("w_propulsor", units="N",
+                       desc="Propulsor weight")
         
         self.declare_partials("*", "*", method="exact")
         
@@ -93,7 +93,7 @@ class PropellerWeight(om.ExplicitComponent):
 
         g = 9.806
         
-        outputs["w_props"] = (k_prop * n_props * n_blades ** 0.391 * ( (d_blades * p_shaft) / (n_props * 1000) ) ** 0.782) / 2.20462 * g
+        outputs["w_propulsor"] = (k_prop * n_props * n_blades ** 0.391 * ( (d_blades * p_shaft) / (n_props * 1000) ) ** 0.782) / 2.20462 * g
 
     def compute_partials(self, inputs, partials):
 
@@ -105,15 +105,15 @@ class PropellerWeight(om.ExplicitComponent):
 
         g = 9.806
 
-        partials["w_props", "n_props"] = 4.4479*k_prop*n_blades**0.3910*((0.0010*d_blades*p_shaft)/n_props)**0.7820 - (0.0035*d_blades*k_prop*n_blades**0.3910*p_shaft)/(n_props*((0.0010*d_blades*p_shaft)/n_props)**0.2180)
+        partials["w_propulsor", "n_props"] = 4.4479*k_prop*n_blades**0.3910*((0.0010*d_blades*p_shaft)/n_props)**0.7820 - (0.0035*d_blades*k_prop*n_blades**0.3910*p_shaft)/(n_props*((0.0010*d_blades*p_shaft)/n_props)**0.2180)
 
-        partials["w_props", "n_blades"] = (1.7391*k_prop*n_props*((0.0010*d_blades*p_shaft)/n_props)**0.7820)/n_blades**0.6090
+        partials["w_propulsor", "n_blades"] = (1.7391*k_prop*n_props*((0.0010*d_blades*p_shaft)/n_props)**0.7820)/n_blades**0.6090
 
-        partials["w_props", "k_prop"] = 4.4479*n_blades**0.3910*n_props*((0.0010*d_blades*p_shaft)/n_props)**0.7820
+        partials["w_propulsor", "k_prop"] = 4.4479*n_blades**0.3910*n_props*((0.0010*d_blades*p_shaft)/n_props)**0.7820
 
-        partials["w_props", "d_blades"] = (0.0035*k_prop*n_blades**0.3910*p_shaft)/((0.0010*d_blades*p_shaft)/n_props)**0.2180
+        partials["w_propulsor", "d_blades"] = (0.0035*k_prop*n_blades**0.3910*p_shaft)/((0.0010*d_blades*p_shaft)/n_props)**0.2180
 
-        partials["w_props", "p_shaft"] = (0.0035*d_blades*k_prop*n_blades**0.3910)/((0.0010*d_blades*p_shaft)/n_props)**0.2180
+        partials["w_propulsor", "p_shaft"] = (0.0035*d_blades*k_prop*n_blades**0.3910)/((0.0010*d_blades*p_shaft)/n_props)**0.2180
 
 
 
@@ -158,16 +158,22 @@ class NacelleWeight(om.ExplicitComponent):
     """
     
     def setup(self):
-        self.add_input("n_motors", val=1.0, units=None,
-                      desc="Number of motors")
+        self.add_input("n_fans", val=1.0, units=None,
+                      desc="Number of fans")
+        self.add_input("n_props", val=1.0, units=None,
+                      desc="Number of propellers")
+        self.add_input("p_prop_shaft_max", val=1.0, units="hp",
+                      desc="Power per propeller")
+        self.add_input("p_fan_shaft_max", val=1.0, units="hp",
+                      desc="Power per fan")
         self.add_input("n_gens", val=1.0, units=None,
-                      desc="Number of gens")
-        self.add_input("p_motor", val=1.0, units="hp",
-                      desc="Power per motor")
+                      desc="Number of generators")
+        
+
         self.add_input("p_gen_unit", val=1.0, units="hp",
-                      desc="Power per generator")
+                      desc="Max power per generator")
         self.add_input("p_turbine_unit", val=1.0, units="hp",
-                      desc="Gas turbine power required")
+                      desc="Max power per turbine")
 
         self.add_output("w_nacelles", units="N",
                        desc="Nacelles weight")
@@ -176,20 +182,42 @@ class NacelleWeight(om.ExplicitComponent):
         
     def compute(self, inputs, outputs):
 
+        # Unpack inputs
+        n_fans = inputs["n_fans"]
+        n_props = inputs["n_props"]
+        p_prop_shaft_max = inputs["p_prop_shaft_max"]
+        p_fan_shaft_max = inputs["p_fan_shaft_max"]
+        n_gens = inputs["n_gens"]
+        p_gen_unit = inputs["p_gen_unit"]
+        p_turbine_unit = inputs["p_turbine_unit"]
+
         #pdb.set_trace()
         g = 9.806
-        outputs["w_nacelles"] = 0.14 * ( inputs["p_motor"] * inputs["n_motors"] + inputs["p_gen_unit"] *\
-                                         inputs["n_gens"]  + inputs["p_turbine_unit"] * inputs["n_gens"] ) / 2.20462 * g
+        outputs["w_nacelles"] = 0.14 * ( p_prop_shaft_max * n_props + p_fan_shaft_max * n_fans + p_gen_unit * n_gens + p_turbine_unit * n_gens ) / 2.20462 * g
         
     def compute_partials(self, inputs, partials):   
 
+        # Unpack inputs
+        n_fans = inputs["n_fans"]
+        n_props = inputs["n_props"]
+        p_prop_shaft_max = inputs["p_prop_shaft_max"]
+        p_fan_shaft_max = inputs["p_fan_shaft_max"]
+        n_gens = inputs["n_gens"]
+        p_gen_unit = inputs["p_gen_unit"]
+        p_turbine_unit = inputs["p_turbine_unit"]
+
         g = 9.806
 
-        partials["w_nacelles", "p_motor"] = (0.14 * inputs["n_motors"]) / 2.20462 * g
-        partials["w_nacelles", "n_motors"] = (0.14 * inputs["p_motor"]) / 2.20462 * g
-        partials["w_nacelles", "p_gen_unit"] = (0.14 * inputs["n_gens"]) / 2.20462 * g
-        partials["w_nacelles", "n_gens"] = (0.14 * (inputs["p_gen_unit"] + inputs["p_turbine_unit"])) / 2.20462 * g
-        partials["w_nacelles", "p_turbine_unit"] = (0.14 * inputs["n_gens"]) / 2.20462 * g
+        partials["w_nacelles", "p_prop_shaft_max"] = (0.14 * n_props) / 2.20462 * g
+        partials["w_nacelles", "n_props"] = (0.14 * p_prop_shaft_max) / 2.20462 * g
+
+        partials["w_nacelles", "p_fan_shaft_max"] = (0.14 * n_fans) / 2.20462 * g
+        partials["w_nacelles", "n_fans"] = (0.14 * p_fan_shaft_max) / 2.20462 * g
+
+        partials["w_nacelles", "p_gen_unit"] = (0.14 * n_gens) / 2.20462 * g
+        partials["w_nacelles", "n_gens"] = (0.14 * (p_gen_unit + p_turbine_unit)) / 2.20462 * g
+
+        partials["w_nacelles", "p_turbine_unit"] = (0.14 * n_gens) / 2.20462 * g
 
 class ElecPowertrainWeight(om.ExplicitComponent):
     """Computes weights of electrical powertrain components."""
@@ -349,22 +377,21 @@ class HybridPowertrainWeight(om.Group):
                                          "se_bat", "turbine_power_density", "sp_gen"])
         
         self.add_subsystem("nacelle", NacelleWeight(),
-                          promotes_inputs=["n_motors", "n_gens",
-                                         "p_motor", "p_gen_unit", "p_turbine_unit"])
+                          promotes_inputs=["*"])
         
-        self.add_subsystem("propeller", PropellerWeight(),
-                          promotes_inputs=["n_props", "d_blades", "p_shaft","k_prop","n_blades"])
+        self.add_subsystem("propeller", PropulsorWeight(),
+                          promotes_inputs=[])
         
         # Apply the propeller weight function to the ducted fan
-        self.add_subsystem("ducted_fan", PropellerWeight(),
-                          promotes_inputs=["n_fans", "d_fan", "p_shaft","k_fan","n_blades"])
+        self.add_subsystem("fan", PropulsorWeight(),
+                          promotes_inputs=[])
         
         
         # Add total weight output
         self.add_subsystem("total_weight", om.AddSubtractComp(
             output_name="w_hybrid_ptrain",
             input_names=["w_fuel_system", "w_turbines", "w_elec_ptrain", 
-                        "w_nacelles", "w_props"],
+                        "w_nacelles", "w_fan", "w_propeller"],
             units="N",
             desc="Total hybrid powertrain weight"),
             promotes_outputs=["w_hybrid_ptrain"])
@@ -373,7 +400,8 @@ class HybridPowertrainWeight(om.Group):
         self.connect("fuel_system.w_fuel_system", "total_weight.w_fuel_system")
         self.connect("elec_powertrain.w_elec_ptrain", "total_weight.w_elec_ptrain")
         self.connect("nacelle.w_nacelles", "total_weight.w_nacelles")
-        self.connect("propeller.w_props", "total_weight.w_props")
+        self.connect("propeller.w_propulsor", "total_weight.w_propeller")
+        self.connect("fan.w_propulsor", "total_weight.w_fan")
         self.connect("turbine_engine.w_turbines", "total_weight.w_turbines")
 
         self.nonlinear_solver = om.NewtonSolver()
@@ -418,10 +446,17 @@ if __name__ == "__main__":
     
     # Propeller inputs
     ivc.add_output("n_props", val=2.0)
-    ivc.add_output("d_blades", val=2.5, units="m")
-    ivc.add_output("p_shaft", val=250000.0, units="W")
+    ivc.add_output("d_prop_blades", val=2.5, units="m")
+    ivc.add_output("p_prop_shaft_max", val=250000.0, units="W")
     ivc.add_output("k_prop", val=31.92)
-    ivc.add_output("n_blades", val=5.0)
+    ivc.add_output("n_prop_blades", val=5.0)
+
+    # Ducted Fan inputs
+    ivc.add_output("n_fans", val=2.0)
+    ivc.add_output("d_fan_blades", val=2.5, units="m")
+    ivc.add_output("p_fan_shaft_max", val=250000.0, units="W")
+    ivc.add_output("k_fan", val=31.92)
+    ivc.add_output("n_fan_blades", val=5.0)
     
 
     
@@ -430,9 +465,21 @@ if __name__ == "__main__":
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
     model.add_subsystem('hybrid_ptrain', HybridPowertrainWeight(), promotes_inputs=["*"])
     
+    model.connect("n_props", "propeller.n_props")
+    model.connect("d_prop_blades", "propeller.d_blades")
+    model.connect("p_prop_shaft_max", "propeller.p_shaft")
+    model.connect("k_prop", "propeller.k_prop")
+    model.connect("n_prop_blades", "propeller.n_blades")
+
+    model.connect("n_fans", "fan.n_props")
+    model.connect("d_fan_blades", "fan.d_blades")
+    model.connect("p_fan_shaft_max", "fan.p_shaft")
+    model.connect("k_fan", "fan.k_prop")
+    model.connect("n_fan_blades", "fan.n_blades")
+
     # Setup problem
     prob.setup()
-    #om.n2(prob)
+    om.n2(prob)
     
     # Run the model
     prob.run_model()
@@ -445,8 +492,8 @@ if __name__ == "__main__":
     print('Turbine Engine Weight:', prob.get_val('hybrid_ptrain.turbine_engine.w_turbines')[0]/g, 'kg')
     print('Electric Powertrain Weight:', prob.get_val('hybrid_ptrain.elec_powertrain.w_elec_ptrain')[0]/g, 'kg')
     print('Nacelles Weight:', prob.get_val('hybrid_ptrain.nacelle.w_nacelles')[0]/g, 'kg')
-    print('Propeller Weight:', prob.get_val('hybrid_ptrain.propeller.w_props')[0]/g, 'kg')
+    print('Propeller Weight:', prob.get_val('hybrid_ptrain.propeller.w_propulsor')[0]/g, 'kg')
     print('Total Hybrid Powertrain Weight:', prob.get_val('hybrid_ptrain.total_weight.w_hybrid_ptrain')[0]/g, 'kg')
     
     # Check partials (uncomment to verify derivatives)
-    prob.check_partials(compact_print=True) 
+    # prob.check_partials(compact_print=True) 

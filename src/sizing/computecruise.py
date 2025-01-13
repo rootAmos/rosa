@@ -11,7 +11,7 @@ class Cruise(om.ExplicitComponent):
         self.add_input('vel',val=1.0, units='m/s', desc='True airspeed')
         self.add_input('s_ref',val=1.0, units='m**2', desc='Reference wing area')
         self.add_input('cd0',val=1.0, desc='Zero-lift drag coefficient')
-        self.add_input('ar',val=1.0, desc='Aspect ratio')
+        self.add_input('ar_w',val=1.0, desc='Aspect ratio')
         self.add_input('e', val=1.0, desc='Oswald efficiency factor')
         self.add_input('gamma', val=0.0, units='rad', desc='Flight path angle (0 for cruise)')
         self.add_input('rho', val=1.0, units='kg/m**3', desc='Air density')
@@ -31,7 +31,7 @@ class Cruise(om.ExplicitComponent):
         vel = inputs['vel']
         s_ref = inputs['s_ref']
         cd0 = inputs['cd0']
-        ar = inputs['ar']
+        ar = inputs['ar_w']
         e = inputs['e']
         gamma = inputs['gamma']
         rho = inputs['rho']
@@ -65,7 +65,7 @@ class Cruise(om.ExplicitComponent):
         vel = inputs['vel']
         s_ref = inputs['s_ref']
         cd0 = inputs['cd0']
-        ar = inputs['ar']
+        ar = inputs['ar_w']
         e = inputs['e']
         gamma = inputs['gamma']
         rho = inputs['rho']
@@ -82,7 +82,7 @@ class Cruise(om.ExplicitComponent):
 
         partials['thrust_total', 's_ref'] = (rho*vel**2*(cd0 + (4*w_mto**2*np.cos(gamma)**2)/(ar*e*rho**2*s_ref**2*vel**4*np.pi)))/2 - (4*w_mto**2*np.cos(gamma)**2)/(ar*e*rho*s_ref**2*vel**2*np.pi)
 
-        partials['thrust_total', 'ar'] = -(2*w_mto**2*np.cos(gamma)**2)/(ar**2*e*rho*s_ref*vel**2*np.pi)
+        partials['thrust_total', 'ar_w'] = -(2*w_mto**2*np.cos(gamma)**2)/(ar**2*e*rho*s_ref*vel**2*np.pi)
 
         partials['thrust_total', 'e'] = -(2*w_mto**2*np.cos(gamma)**2)/(ar*e**2*rho*s_ref*vel**2*np.pi)
 
@@ -109,7 +109,7 @@ class Cruise(om.ExplicitComponent):
 
         partials['CD', 's_ref'] = -(8*w_mto**2*np.cos(gamma)**2)/(ar*e*rho**2*s_ref**3*vel**4*np.pi)
 
-        partials['CD', 'ar'] = -(4*w_mto**2*np.cos(gamma)**2)/(ar**2*e*rho**2*s_ref**2*vel**4*np.pi)
+        partials['CD', 'ar_w'] = -(4*w_mto**2*np.cos(gamma)**2)/(ar**2*e*rho**2*s_ref**2*vel**4*np.pi)
 
         partials['CD', 'e'] = -(4*w_mto**2*np.cos(gamma)**2)/(ar*e**2*rho**2*s_ref**2*vel**4*np.pi)
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     ivc.add_output('vel', val=100.0, units='m/s')
     ivc.add_output('s_ref', val=100.0, units='m**2')
     ivc.add_output('cd0', val=0.02)
-    ivc.add_output('ar', val=10.0)
+    ivc.add_output('ar_w', val=10.0)
     ivc.add_output('e', val=0.8)
     ivc.add_output('gamma', val=0.0, units='rad')
     ivc.add_output('rho', val=1.225, units='kg/m**3')

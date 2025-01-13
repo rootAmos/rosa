@@ -14,7 +14,7 @@ class WingWeight(om.ExplicitComponent):
     def setup(self):
         self.add_input("w_mto", val=1.0, units="lbf", desc="Maximum takeoff weight")
         self.add_input("n_ult", val=1.0, units=None, desc="Ultimate load factor")
-        self.add_input("s_w", val=1.0, units="ft**2", desc="Wing area")
+        self.add_input("s_ref", val=1.0, units="ft**2", desc="Wing area")
         self.add_input("ar_w", val=1.0, units=None, desc="Wing aspect ratio")
         self.add_input("t_c_w", val=1.0, units=None, desc="Wing thickness-to-chord ratio")
         self.add_input("sweep_c_4_w", val=1.0, units="rad", desc="Wing quarter-chord sweep angle")
@@ -31,7 +31,7 @@ class WingWeight(om.ExplicitComponent):
 
         w_mto = inputs["w_mto"] 
         n_ult = inputs["n_ult"]
-        s_w = inputs["s_w"]
+        s_ref = inputs["s_ref"]
         ar_w = inputs["ar_w"]
         t_c_w = inputs["t_c_w"]
         sweep_c_4_w = inputs["sweep_c_4_w"]
@@ -42,7 +42,7 @@ class WingWeight(om.ExplicitComponent):
 
         outputs["w_wing"] = (
         0.036 
-        * s_w**0.758 
+        * s_ref**0.758 
         * w_fuel**0.0035 
         * (ar_w / (np.cos(sweep_c_4_w)**2))**0.6 
         * q_cruise**0.006 
@@ -55,7 +55,7 @@ class WingWeight(om.ExplicitComponent):
 
         w_mto = inputs["w_mto"]
         n_ult = inputs["n_ult"]
-        s_w = inputs["s_w"]
+        s_ref = inputs["s_ref"]
         ar_w = inputs["ar_w"]
         t_c_w = inputs["t_c_w"]
         sweep_c_4_w = inputs["sweep_c_4_w"]
@@ -64,23 +64,23 @@ class WingWeight(om.ExplicitComponent):
         w_fuel = inputs["w_fuel"]
 
 
-        partials["w_wing", "s_w"] = (0.0273*lambda_w**0.0400*q_cruise**0.0060*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(s_w**0.2420*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "s_ref"] = (0.0273*lambda_w**0.0400*q_cruise**0.0060*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(s_ref**0.2420*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "w_fuel"] =(1.2600e-04*lambda_w**0.0400*q_cruise**0.0060*s_w**0.7580*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(w_fuel**0.9965*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "w_fuel"] =(1.2600e-04*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(w_fuel**0.9965*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "w_mto"] = (0.0176*lambda_w**0.0400*n_ult*q_cruise**0.0060*s_w**0.7580*w_fuel**0.0035*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/((n_ult*w_mto)**0.5100*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "w_mto"] = (0.0176*lambda_w**0.0400*n_ult*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/((n_ult*w_mto)**0.5100*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "ar_w"] = (0.0216*lambda_w**0.0400*q_cruise**0.0060*s_w**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900)/(np.cos(sweep_c_4_w)**2*(ar_w/np.cos(sweep_c_4_w)**2)**0.4000*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "ar_w"] = (0.0216*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900)/(np.cos(sweep_c_4_w)**2*(ar_w/np.cos(sweep_c_4_w)**2)**0.4000*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "q_cruise"] =(2.1600e-04*lambda_w**0.0400*s_w**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(q_cruise**0.9940*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "q_cruise"] =(2.1600e-04*lambda_w**0.0400*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(q_cruise**0.9940*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "lambda_w"] = (0.0014*q_cruise**0.0060*s_w**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(lambda_w**0.9600*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "lambda_w"] = (0.0014*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(lambda_w**0.9600*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "n_ult"] = (0.0176*lambda_w**0.0400*q_cruise**0.0060*s_w**0.7580*w_fuel**0.0035*w_mto*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/((n_ult*w_mto)**0.5100*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "n_ult"] = (0.0176*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*w_mto*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/((n_ult*w_mto)**0.5100*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "t_c_w"] = -(1.0800*lambda_w**0.0400*q_cruise**0.0060*s_w**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(np.cos(sweep_c_4_w)*((100*t_c_w)/np.cos(sweep_c_4_w))**1.3000)
+        partials["w_wing", "t_c_w"] = -(1.0800*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(np.cos(sweep_c_4_w)*((100*t_c_w)/np.cos(sweep_c_4_w))**1.3000)
 
-        partials["w_wing", "sweep_c_4_w"] = (0.0432*ar_w*lambda_w**0.0400*q_cruise**0.0060*s_w**0.7580*w_fuel**0.0035*np.sin(sweep_c_4_w)*(n_ult*w_mto)**0.4900)/(np.cos(sweep_c_4_w)**3*(ar_w/np.cos(sweep_c_4_w)**2)**0.4000*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000) - (1.0800*lambda_w**0.0400*q_cruise**0.0060*s_w**0.7580*t_c_w*w_fuel**0.0035*np.sin(sweep_c_4_w)*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(np.cos(sweep_c_4_w)**2*((100*t_c_w)/np.cos(sweep_c_4_w))**1.3000)
+        partials["w_wing", "sweep_c_4_w"] = (0.0432*ar_w*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*np.sin(sweep_c_4_w)*(n_ult*w_mto)**0.4900)/(np.cos(sweep_c_4_w)**3*(ar_w/np.cos(sweep_c_4_w)**2)**0.4000*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000) - (1.0800*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*t_c_w*w_fuel**0.0035*np.sin(sweep_c_4_w)*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(np.cos(sweep_c_4_w)**2*((100*t_c_w)/np.cos(sweep_c_4_w))**1.3000)
 
         
 
@@ -583,11 +583,11 @@ class ComputeWeights(om.Group):
         self.add_subsystem("wing_weight", WingWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("fuselage_weight", FuselageWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("landing_gear_weight", LandingGearWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
-        self.add_subsystem("furnishings_weight", FurnishingsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
-        self.add_subsystem("avionics_weight", AvionicsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("furnishings_refeight", FurnishingsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("avionics_refeight", AvionicsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("flight_control_system_weight", FlightControlSystemWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
         self.add_subsystem("electrical_system_weight", ElectricalSystemWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
-        self.add_subsystem("systems_weight", SystemsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
+        self.add_subsystem("systems_refeight", SystemsWeight(), promotes_inputs=["*"], promotes_outputs=["*"])
 
 
         # Add aircraft weight calculator
@@ -625,7 +625,7 @@ if __name__ == "__main__":
     # WingWeight inputs
     #ivc.add_output("w_mto", val=1.0, units="lbf", desc="Maximum takeoff weight")
     ivc.add_output("n_ult", val=3.75, units=None, desc="Ultimate load factor")
-    ivc.add_output("s_w", val=282.74, units="ft**2", desc="Wing area")
+    ivc.add_output("s_ref", val=282.74, units="ft**2", desc="Wing area")
     ivc.add_output("ar_w", val=14.0, units=None, desc="Wing aspect ratio")
     ivc.add_output("t_c_w", val=0.13, units=None, desc="Wing thickness-to-chord ratio")
     ivc.add_output("sweep_c_4_w", val=10/180 * np.pi, units="rad", desc="Wing quarter-chord sweep angle")
@@ -697,19 +697,39 @@ if __name__ == "__main__":
     
     # Turbine inputs
     ivc.add_output("p_turbine_unit", val=1000.0, units="hp")
-    
+
     # Propeller inputs
     ivc.add_output("n_props", val=2.0)
-    ivc.add_output("d_blades", val=2.5, units="m")
-    ivc.add_output("p_shaft", val=250000.0, units="W")
+    ivc.add_output("d_prop_blades", val=2.5, units="m")
+    ivc.add_output("p_prop_shaft_max", val=250000.0, units="W")
     ivc.add_output("k_prop", val=31.92)
-    ivc.add_output("n_blades", val=5.0)
+    ivc.add_output("n_prop_blades", val=5.0)
+
+    # Ducted Fan inputs
+    ivc.add_output("n_fans", val=2.0)
+    ivc.add_output("d_fan_blades", val=2.5, units="m")
+    ivc.add_output("p_fan_shaft_max", val=250000.0, units="W")
+    ivc.add_output("k_fan", val=31.92)
+    ivc.add_output("n_fan_blades", val=5.0)
+    
 
     
     # Build the model
     model = prob.model
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
     model.add_subsystem('weights', ComputeWeights(), promotes_inputs=["*"])
+
+    model.connect("n_props", "propeller.n_props")
+    model.connect("d_prop_blades", "propeller.d_blades")
+    model.connect("p_prop_shaft_max", "propeller.p_shaft")
+    model.connect("k_prop", "propeller.k_prop")
+    model.connect("n_prop_blades", "propeller.n_blades")
+
+    model.connect("n_fans", "fan.n_props")
+    model.connect("d_fan_blades", "fan.d_blades")
+    model.connect("p_fan_shaft_max", "fan.p_shaft")
+    model.connect("k_fan", "fan.k_prop")
+    model.connect("n_fan_blades", "fan.n_blades")
     
     # Setup problem
     prob.setup()
