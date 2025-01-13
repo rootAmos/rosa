@@ -534,7 +534,7 @@ class AircraftWeight(om.ExplicitComponent):
         self.add_input("w_systems", val=1.0, units="N", desc="Systems weight")
         self.add_input("w_furnishings", val=1.0, units="N", desc="Furnishings weight")
         self.add_input("w_hybrid_ptrain", val=1.0, units="N", desc="Powertrain weight")
-        self.add_input("w_payload", val=1.0, units="N", desc="Payload weight")
+        self.add_input("w_pay", val=1.0, units="N", desc="Payload weight")
         self.add_input("w_htail", val=1.0, units="N", desc="Horizontal tail weight")
         self.add_input("w_vtail", val=1.0, units="N", desc="Vertical tail weight")
         
@@ -555,7 +555,7 @@ class AircraftWeight(om.ExplicitComponent):
 
         #pdb.set_trace()
                              
-        outputs["w_mto_calc"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_payload"] + inputs["w_systems"] + inputs["w_furnishings"]
+        outputs["w_mto_calc"] = w_airframe + inputs["w_hybrid_ptrain"] + inputs["w_pay"] + inputs["w_systems"] + inputs["w_furnishings"]
         
     def compute_partials(self, inputs, partials):
 
@@ -564,12 +564,12 @@ class AircraftWeight(om.ExplicitComponent):
         partials["w_airframe", "w_htail"] = 1.0
         partials["w_airframe", "w_vtail"] = 1.0
         partials["w_mto_calc", "w_hybrid_ptrain"] = 1.0
-        partials["w_mto_calc", "w_payload"] = 1.0
+        partials["w_mto_calc", "w_pay"] = 1.0
         partials["w_mto_calc", "w_systems"] = 1.0
         partials["w_mto_calc", "w_furnishings"] = 1.0
 
 
-class WeightGroup(om.Group):
+class ComputeWeights(om.Group):
     """Group containing all weight calculation components."""
     
     def setup(self):
@@ -679,7 +679,7 @@ if __name__ == "__main__":
     ivc.add_output("n_motors", val=8.0)
     ivc.add_output("n_gens", val=2.0)
 
-    ivc.add_output("w_payload", val=6*100.0, units="lbf", desc="Payload weight")
+    ivc.add_output("w_pay", val=6*100.0, units="lbf", desc="Payload weight")
     
     # Power/energy densities
     ivc.add_output("sp_motor", val=5000.0, units="W/kg")
@@ -709,7 +709,7 @@ if __name__ == "__main__":
     # Build the model
     model = prob.model
     model.add_subsystem('inputs', ivc, promotes_outputs=["*"])
-    model.add_subsystem('weights', WeightGroup(), promotes_inputs=["*"])
+    model.add_subsystem('weights', ComputeWeights(), promotes_inputs=["*"])
     
     # Setup problem
     prob.setup()

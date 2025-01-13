@@ -4,7 +4,39 @@ import numpy as np
 import openmdao.api as om
 from typing import Any
 
+from openmdao.core.explicitcomponent import ExplicitComponent
 
+class PropulsiveEfficiency(ExplicitComponent):
+    """Multiplies fan, duct, and propulsive efficiencies to get total propulsive efficiency."""
+    
+    def setup(self):
+        # Inputs
+        self.add_input('eta_fan', val=0.9, desc='Fan efficiency')
+        self.add_input('eta_duct', val=0.9, desc='Duct efficiency')
+        self.add_input('eta_pt', val=0.9, desc='fan, duct and isentropic losses efficiency')
+        
+        # Output
+        self.add_output('eta_pt', val=0.729, desc='Total propulsive efficiency')
+        
+        # Declare partials
+        self.declare_partials('eta_pt', ['eta_fan', 'eta_duct', 'eta_pt'])
+        
+    def compute(self, inputs, outputs):
+        eta_fan = inputs['eta_fan']
+        eta_duct = inputs['eta_duct']
+        eta_pt = inputs['eta_pt']
+        
+        outputs['eta_pt'] = eta_fan * eta_duct * eta_pt
+        
+    def compute_partials(self, inputs, partials):
+        eta_fan = inputs['eta_fan']
+        eta_duct = inputs['eta_duct']
+        eta_pt = inputs['eta_pt']
+        
+        partials['eta_pt', 'eta_fan'] = eta_duct * eta_pt
+        partials['eta_pt', 'eta_duct'] = eta_fan * eta_pt
+        partials['eta_pt', 'eta_pt'] = eta_fan * eta_duct
+        
 class ConvergeCruiseRange(om.ImplicitComponent):
     """
     Solves for epsilon given a target range using analytical derivatives.
@@ -87,15 +119,9 @@ class ConvergeCruiseRange(om.ImplicitComponent):
         w_pay = inputs["w_pay"]
         f_we = inputs["f_we"]
         
-        # Terms for readability
-        term1 = (cl/cd) * (eta_i * eta_m * eta_pt / g) * (eta_g / cp)
-        term2 = epsilon * wto_max + (1 - epsilon) * cb * cp * (w_pay + f_we * wto_max)
-        
-        return (
-            term1 * np.log(
-                ((epsilon + (1 - epsilon) * cb * cp) * wto_max) / term2
-            ) + (epsilon * cb * ((1 - f_we) * wto_max - w_pay)) / term2
-        )
+        range = cl * eta_i * eta_m * eta_pt / (g * cd) * ( (eta_g/cp) * np.log(((epsilon + (1-epsilon)*cb*cp)*wto_max)/( epsilon *wto_max + (1-epsilon)*cb*cp*(w_pay + f_we*wto_max))) + ((epsilon * cb * ((1-f_we)*wto_max - w_pay))/(epsilon *wto_max + (1-epsilon) *cb*cp*(w_pay + f_we *wto_max)))   )
+
+        return range
     
 
 
@@ -154,7 +180,7 @@ if __name__ == "__main__":
     import openmdao.api as om
     
     # Create problem
-    prob = om.Problem()
+    prob = om.Problem(reports=False)
     
     # Create independent variable component
     ivc = om.IndepVarComp()
@@ -165,7 +191,7 @@ if __name__ == "__main__":
     ivc.add_output("eta_pt", val=0.85, units=None)
     ivc.add_output("eta_g", val=0.95, units=None)
     ivc.add_output("cb", val=400*3600, units="J/kg")
-    ivc.add_output("cp", val=0.3/60/60/1000, units="1/s")
+    ivc.add_output("cp", val=0.5/60/60/1000, units="1/s")
     ivc.add_output("wto_max", val=5500.0*9.806, units="N")
     ivc.add_output("w_pay", val=200.0*9.806, units="N")
     ivc.add_output("f_we", val=0.6, units=None)

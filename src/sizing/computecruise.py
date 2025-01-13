@@ -7,19 +7,19 @@ class Cruise(om.ExplicitComponent):
     def setup(self):
 
         # Inputs
-        self.add_input('w_mto', units='N', desc='Maximum takeoff weight')
-        self.add_input('vel', units='m/s', desc='True airspeed')
-        self.add_input('s_ref', units='m**2', desc='Reference wing area')
-        self.add_input('cd0', desc='Zero-lift drag coefficient')
-        self.add_input('ar', desc='Aspect ratio')
-        self.add_input('e', desc='Oswald efficiency factor')
-        self.add_input('gamma', units='rad', desc='Flight path angle (0 for cruise)')
-        self.add_input('rho', units='kg/m**3', desc='Air density')
+        self.add_input('w_mto',val=1.0, units='N', desc='Maximum takeoff weight')
+        self.add_input('vel',val=1.0, units='m/s', desc='True airspeed')
+        self.add_input('s_ref',val=1.0, units='m**2', desc='Reference wing area')
+        self.add_input('cd0',val=1.0, desc='Zero-lift drag coefficient')
+        self.add_input('ar',val=1.0, desc='Aspect ratio')
+        self.add_input('e', val=1.0, desc='Oswald efficiency factor')
+        self.add_input('gamma', val=0.0, units='rad', desc='Flight path angle (0 for cruise)')
+        self.add_input('rho', val=1.0, units='kg/m**3', desc='Air density')
 
         # Outputs
-        self.add_output('thrust_total', units='N', desc='Required thrust')
-        self.add_output('CL', desc='Lift coefficient')
-        self.add_output('CD', desc='Drag coefficient')
+        self.add_output('thrust_total', val=1.0, units='N', desc='Required thrust')
+        self.add_output('CL', val=1.0, desc='Lift coefficient')
+        self.add_output('CD', val=1.0, desc='Drag coefficient')
 
     def setup_partials(self):
         self.declare_partials('*', '*', method='exact')

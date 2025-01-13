@@ -15,7 +15,7 @@ class FormatMassResults:
             'Airframe': to_kg(prob.get_val('weights.w_airframe')[0], True),
             'Systems': to_kg(prob.get_val('weights.systems_weight.w_systems')[0], True),
             'Powertrain': to_kg(prob.get_val('weights.hybrid_ptrain_weight.w_hybrid_ptrain')[0], True),
-            'Payload': to_kg(prob.get_val('w_payload')[0], False)
+            'Payload': to_kg(prob.get_val('w_pay')[0], False)
         }
 
         detailed_categories = {
@@ -36,7 +36,7 @@ class FormatMassResults:
             'Turbines': to_kg(prob.get_val('weights.hybrid_ptrain_weight.turbine_engine.w_turbines')[0], True),
             'Fuel System': to_kg(prob.get_val('weights.hybrid_ptrain_weight.fuel_system.w_fuel_system')[0], False),
             'Propellers': to_kg(prob.get_val('weights.hybrid_ptrain_weight.propeller.w_props')[0], True),
-            'Payload': to_kg(prob.get_val('w_payload')[0], False)
+            'Payload': to_kg(prob.get_val('w_pay')[0], False)
         }
         
         return major_categories, detailed_categories

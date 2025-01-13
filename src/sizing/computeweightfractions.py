@@ -7,71 +7,77 @@ from typing import Any
 
 class WeightFractions(om.ExplicitComponent):
     """
-    Computes empty weight fraction and other weight ratios excluding payload and batteries.
+    Computes weight fractions needed for cruise range estimation.
     """
     
     def setup(self):
-        # Structural weights
-        self.add_input("w_wing", val=0.0, units="N",
-                      desc="Wing weight")
-        self.add_input("w_fuselage", val=0.0, units="N",
-                      desc="Fuselage weight")
-        self.add_input("w_lg", val=0.0, units="N",
-                      desc="Landing gear weight")
-        self.add_input("w_nacelles", val=0.0, units="N",
-                      desc="Nacelle weight")
+        self.add_input("w_pay", val=0.0, units="N",
+                      desc="Payload weight")
         
-        # Propulsion weights (excluding bat)
-        self.add_input("w_ptrain", val=0.0, units="N",
-                      desc="Powertrain weight")
-        
-        # bat weight
         self.add_input("w_bat", val=0.0, units="N",
-                      desc="bat weight")
+                      desc="bat weight")     
+        
+        self.add_input("w_mto", val=0.0, units="N",
+                      desc="Maximum takeoff weight")
+
+        self.add_output("f_we", units=None,
+                       desc="Empty weight fraction (excluding bat)")
         self.add_input("w_fuel", val=0.0, units="N",
                       desc="fuel weight")
-        
-
-        # Systems weight
-        self.add_input("w_systems", val=0.0, units="N",
-                      desc="Systems weight")
-        
-        # Total weight for fractions
-        self.add_input("w_mtow", val=0.0, units="N",
-                      desc="Maximum takeoff weight")
-        
-        # Add outputs
-        self.add_output("w_empty", units="N",
-                       desc="Empty weight (excluding bat)")
-        self.add_output("empty_weight_fraction", units=None,
-                       desc="Empty weight fraction (excluding bat)")
         
         self.declare_partials("*", "*", method="exact")
         
     def compute(self, inputs, outputs):
-        # Sum all weights excluding bat
-        outputs["w_empty"] = (inputs["w_wing"] + inputs["w_fuselage"] + 
-                            inputs["w_lg"] + inputs["w_nacelles"] +
-                            inputs["w_ptrain"] + inputs["w_systems"] - inputs["w_bat"] - inputs["w_fuel"])
+
+        # Unpack inputs
+        w_pay = inputs["w_pay"]
+        w_bat = inputs["w_bat"]
+        w_mto = inputs["w_mto"]
+        epsilon_crz = inputs["epsilon_crz"]
+
+        w_fuel = w_bat * (1 - epsilon_crz) / epsilon_crz
+
+        w_empty = w_mto - w_pay - w_bat - w_fuel
         
         # Compute empty weight fraction
-        outputs["empty_weight_fraction"] = outputs["w_empty"] / inputs["w_mtow"]
+        outputs["f_we"] = w_empty / w_mto
+        outputs["w_fuel"] = w_fuel
         
     def compute_partials(self, inputs, partials):
-        # Partials for w_empty
-        weight_components = ["w_wing", "w_fuselage", "w_lg", "w_nacelles",
-                           "w_ptrain", "w_systems", "w_bat", "w_fuel"]
-        
-        for component in weight_components:
-            partials["w_empty", component] = 1.0
-        
-        # Partials for empty_weight_fraction
-        w_empty = sum(inputs[component] for component in weight_components)
-        
-        for component in weight_components:
-            partials["empty_weight_fraction", component] = 1.0 / inputs["w_mtow"]
-        
-        partials["empty_weight_fraction", "w_mtow"] = -w_empty / inputs["w_mtow"]**2
+
+        # Unpack inputs 
+        w_mto = inputs["w_mto"]
+        w_empty = inputs["w_empty"]
+        w_bat = inputs["w_bat"]
+        epsilon_crz = inputs["epsilon_crz"]
+        w_pay = inputs["w_pay"]
+
+        w_fuel = w_bat * (1 - epsilon_crz) / epsilon_crz
+
+        w_empty = w_mto - w_pay - w_bat - w_fuel
+
+        # Compute partials
+        partials["f_we", "w_mto"] = (w_bat - w_mto + w_pay - (w_bat*(epsilon_crz - 1))/epsilon_crz)/w_mto^2 + 1/w_mto
+
+        partials["f_we", "w_pay"] = -1/w_mto
+
+        partials["f_we", "w_bat"] = ((epsilon_crz - 1)/epsilon_crz - 1)/w_mto
+
+        partials["f_we", "epsilon_crz"] = (w_bat/epsilon_crz - (w_bat*(epsilon_crz - 1))/epsilon_crz^2)/w_mto
+
+
+        # Partials for w_fuel
+        partials["w_fuel", "w_bat"] = -(epsilon_crz - 1)/epsilon_crz
+
+        partials["w_fuel", "epsilon_crz"] = (w_bat*(epsilon_crz - 1))/epsilon_crz^2 - w_bat/epsilon_crz
+
+        partials["w_fuel", "w_mto"] = 0.0
+        partials["w_fuel", "w_wing"] = 0.0
+        partials["w_fuel", "w_fuselage"] = 0.0
+        partials["w_fuel", "w_lg"] = 0.0
+        partials["w_fuel", "w_nacelles"] = 0.0
+        partials["w_fuel", "w_ptrain"] = 0.0
+        partials["w_fuel", "w_systems"] = 0.0
 
 
 if __name__ == "__main__":
@@ -96,7 +102,7 @@ if __name__ == "__main__":
     ivc.add_output("w_systems", val=1500.0, units="N")
     
     # Add total weight
-    ivc.add_output("w_mtow", val=40000.0, units="N")
+    ivc.add_output("w_mto", val=40000.0, units="N")
     
     # Build the model
     model = prob.model
@@ -112,7 +118,7 @@ if __name__ == "__main__":
     # Print results
     print('\nWeight Fraction Results:')
     print('Empty Weight:', prob.get_val('weight_fractions.w_empty')[0], 'N')
-    print('Empty Weight Fraction:', prob.get_val('weight_fractions.empty_weight_fraction')[0])
+    print('Empty Weight Fraction:', prob.get_val('weight_fractions.f_we')[0])
     
     # Check partials
     prob.check_partials(compact_print=True) 

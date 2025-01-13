@@ -1,9 +1,32 @@
 import numpy as np  
 import openmdao.api as om
 
+class ComputeUnitThrust(om.ExplicitComponent):
+    """
+    Compute the thrust required per ducted fan unit by dividing total thrust by number of fans.
+    """
+
+    def setup(self):
+        # Inputs
+        self.add_input('thrust_total', val=1.0, desc='total thrust required', units='N')
+        self.add_input('n_fans', val=1.0, desc='number of fans', units=None)
+
+        # Outputs
+        self.add_output('thrust_unit', val=1.0, desc='thrust required per fan', units='N')
+
+    def setup_partials(self):
+        self.declare_partials('thrust_unit', ['thrust_total', 'n_fans'])
+
+    def compute(self, inputs, outputs):
+        outputs['thrust_unit'] = inputs['thrust_total'] / inputs['n_fans']
+
+    def compute_partials(self, inputs, partials):
+        partials['thrust_unit', 'thrust_total'] = 1.0 / inputs['n_fans']
+        partials['thrust_unit', 'n_fans'] = -inputs['thrust_total'] / inputs['n_fans']**2
 
 
-class DuctedFan(om.ExplicitComponent):
+
+class ComputeDuctedfan(om.ExplicitComponent):
     """
     Compute the power required for a ducted fan.
 
@@ -96,7 +119,8 @@ class DuctedFan(om.ExplicitComponent):
         partials['p_shaft_unit', 'eta_duct'] = -(((vel + ((epsilon_r**2*vel**2)/4 + (thrust_unit*epsilon_r)/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))**(1/2) + vel*(epsilon_r/2 - 1))/(2*vel) + 1/2)*((thrust_unit**3/(4*epsilon_r*np.pi*rho*(d_blades**2/4 - d_hub**2/4)) + (thrust_unit**2*vel**2)/16)**(1/2) + (3*thrust_unit*vel)/4))/(eta_fan*eta_duct**2)
 
 
-
+        
+        
         partials['eta_prplsv', 'epsilon_r'] = -(2*(vel/2 + ((epsilon_r*vel**2)/2 + thrust_unit/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))/(2*((epsilon_r**2*vel**2)/4 + (thrust_unit*epsilon_r)/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))**(1/2))))/(vel*((vel + ((epsilon_r**2*vel**2)/4 + (thrust_unit*epsilon_r)/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))**(1/2) + vel*(epsilon_r/2 - 1))/vel + 1)**2)
 
         partials['eta_prplsv', 'vel'] = -(2*((epsilon_r/2 + (epsilon_r**2*vel)/(4*((epsilon_r**2*vel**2)/4 + (thrust_unit*epsilon_r)/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))**(1/2)))/vel - (vel + ((epsilon_r**2*vel**2)/4 + (thrust_unit*epsilon_r)/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))**(1/2) + vel*(epsilon_r/2 - 1))/vel**2))/((vel + ((epsilon_r**2*vel**2)/4 + (thrust_unit*epsilon_r)/(np.pi*rho*(d_blades**2/4 - d_hub**2/4)))**(1/2) + vel*(epsilon_r/2 - 1))/vel + 1)**2
@@ -111,6 +135,7 @@ class DuctedFan(om.ExplicitComponent):
 
         partials['eta_prplsv', 'eta_fan'] = 0
         partials['eta_prplsv', 'eta_duct'] = 0
+        
 
 
 
@@ -132,7 +157,7 @@ if __name__ == "__main__":
     ivc.add_output('eta_duct', 0.5, units=None)
 
     model.add_subsystem('Indeps', ivc, promotes_outputs=['*'])
-    model.add_subsystem('DuctedFan', DuctedFan(), promotes_inputs=['*'])
+    model.add_subsystem('DuctedFan', ComputeDuctedfan(), promotes_inputs=['*'])
 
     model.nonlinear_solver = om.NewtonSolver()
     model.linear_solver = om.DirectSolver()
@@ -148,6 +173,7 @@ if __name__ == "__main__":
     p.run_model()
 
     print('p_shaft_unit = ', p['DuctedFan.p_shaft_unit']/1000, 'kW')
-    print('eta_prplsv = ', p['DuctedFan.eta_prplsv'])
+    #print('eta_prplsv = ', p['DuctedFan.eta_prplsv'])
 
     #p.check_partials(compact_print=True)
+

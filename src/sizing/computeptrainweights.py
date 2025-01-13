@@ -355,6 +355,11 @@ class HybridPowertrainWeight(om.Group):
         self.add_subsystem("propeller", PropellerWeight(),
                           promotes_inputs=["n_props", "d_blades", "p_shaft","k_prop","n_blades"])
         
+        # Apply the propeller weight function to the ducted fan
+        self.add_subsystem("ducted_fan", PropellerWeight(),
+                          promotes_inputs=["n_fans", "d_fan", "p_shaft","k_fan","n_blades"])
+        
+        
         # Add total weight output
         self.add_subsystem("total_weight", om.AddSubtractComp(
             output_name="w_hybrid_ptrain",
