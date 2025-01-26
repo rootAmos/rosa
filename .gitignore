@@ -1,6 +1,5 @@
 /HRI/*
 /path/
-/tools/*
 /partials/*
 src/sizing/**/__pycache__/
 *.html
@@ -12,3 +11,5 @@ computeturbocruiserange_out/*
 computeamos_out/*
 computehover_out/
 computecruise_out/*
+*.png
+*.csv
