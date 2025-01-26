@@ -133,7 +133,7 @@ if __name__ == "__main__":
     import numpy as np
     
     # Get all txt files in data folder
-    filenames = glob.glob("data/*.txt")
+    filenames = glob.glob("data/aero/*.txt")
     aero = parse_aero_coeffs(filenames)
     
     # Create interpolation functions

@@ -159,7 +159,8 @@ if __name__ == "__main__":
     CT_CP_interp, J_CP_interp, J_CT_interp = load_dfan_data()
     
     # Example calculations with SI inputs
-    thrust_N = 3000
+    L_D = 18
+    thrust_N = 5700*9.806/L_D / 2
     airspeed_ms = 74
     density_kgm3 = 1.225
     diameter_m = 1.58
