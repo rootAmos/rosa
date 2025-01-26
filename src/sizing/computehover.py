@@ -188,14 +188,14 @@ if __name__ == "__main__":
     
     # Create independent variable component
     ivc = om.IndepVarComp()
-    ivc.add_output("w_mto", val=5500*9.806, units="N")
+    ivc.add_output("w_mto", val=5700*9.806, units="N")
     ivc.add_output("t_hover", val=120.0, units="s")
     ivc.add_output("epsilon_hvr", val=0.4)
     ivc.add_output("n_lift_props", val=8.0)
     ivc.add_output("n_gens", val=2.0)
     ivc.add_output("eta_motor", val=0.95)
     ivc.add_output("d_blades", val=3.0, units="m")
-    ivc.add_output("d_hub", val=1.0, units="m")
+    ivc.add_output("d_hub", val=0.45, units="m")
     ivc.add_output("eta_cable", val=0.98)
     ivc.add_output("eta_pe", val=0.95)
     ivc.add_output("eta_gen", val=0.95)
