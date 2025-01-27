@@ -7,6 +7,7 @@ import numpy as np
 from tools.lift_prop_import import EmpiricalPropeller
 from tools.emotor_import_rbf import EmpiricalMotor
 
+
 def analyze_hover_performance(MTOM_kg, density_kgm3, diameter_m):
     """
     Analyze hover performance for 8-motor configuration.
