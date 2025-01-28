@@ -1,5 +1,6 @@
+# See INSTALL.md for pyOptSparse + IPOPT installation instructions
 matplotlib==3.10.0
-numpy==2.2.2
+numpy==1.26.4
 openmdao==3.36.0
 pandas==2.2.3
 scipy==1.15.1
