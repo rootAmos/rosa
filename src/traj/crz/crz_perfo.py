@@ -11,66 +11,54 @@ from tools.flow5_import import EmpiricalAero
 import glob
 import pdb
 
-class CruiseSegment:
-    def __init__(self, MTOM_kg, density_kg_m3, diameter_m, airspeed_m_s,aero_filenames, num_lift_prplrs,num_fwd_prplrs):
-        self.MTOM_kg = MTOM_kg
-        self.density_kg_m3 = density_kg_m3
-        self.diameter_m = diameter_m
-        self.airspeed_m_s = airspeed_m_s
-        self.aero_filenames = aero_filenames
-        self.num_lift_prplrs = num_lift_prplrs
-        self.num_fwd_prplrs = num_fwd_prplrs
+class CruisePerformance:
+    def __init__(self, vehicle, phase):
+        self.mtom_kg = vehicle['mtom_kg']
+        self.density_kg_m3 = phase['density_kgm3']
+        self.fwd_prplsr_diam_m = vehicle['fwd_prplsr_diam_m']
+        self.u_m_s = phase['u_m_s']
+        self.aero_filenames = phase['aero_filenames']
+        self.num_lift_prplsrs = vehicle['num_lift_prplsrs']
+        self.num_fwd_prplsrs = vehicle['num_fwd_prplsrs']
 
     def analyze(self):
-        """
-        Analyze hover performance for 8-motor configuration.
+        """Analyze cruise performance with fully vectorized calculations."""
+        # Calculate CL required
+        CL = (self.mtom_kg * 9.806) / (0.5 * self.density_kg_m3 * self.u_m_s**2 * np.pi * self.fwd_prplsr_diam_m**2)
+
+        # Create interpolation functions
+        aero = EmpiricalAero(self.aero_filenames)
+        alpha_from_CL = aero.interp_alpha_from_CL()
         
-        Args:
-            MTOM_kg: Maximum takeoff mass (kg)
-            density_kgm3: Air density (kg/m³)
-            diameter_m: Propeller diameter (m)
-        """
-        # Load propeller and motor data
+        # Get alpha and CD using vectorized operations
+        speed_CL_points = np.column_stack((self.u_m_s, CL))
+        alpha = alpha_from_CL(speed_CL_points)
+        
+        speed_alpha_points = np.column_stack((self.u_m_s, alpha))
+        CD = aero.interp_CD(speed_alpha_points)
+
+        # Vectorized force calculations
+        drag_N = 0.5 * self.density_kg_m3 * self.u_m_s**2 * np.pi * self.fwd_prplsr_diam_m**2 * CD
+        thrust_N = drag_N
+        unit_thrust_N = thrust_N / self.num_fwd_prplsrs
+
         dfan = EmpiricalDfan()
 
-        # Unpack Segment
-        MTOM_kg = self.MTOM_kg
-        density_kg_m3 = self.density_kg_m3
-        diameter_m = self.diameter_m
-        airspeed_m_s = self.airspeed_m_s
-        aero_filenames = self.aero_filenames
-        num_fwd_prplrs = self.num_fwd_prplrs
+        # Get propeller and motor performance (assuming dfan.calculate_power is vectorized)
+        power_W, rpm = dfan.calculate_power(
+            unit_thrust_N, 
+            self.u_m_s, 
+            self.density_kg_m3, 
+            self.fwd_prplsr_diam_m
+        )
 
-        # Calculate CL required
-        CL = (MTOM_kg * 9.806) / (0.5 * density_kg_m3 * airspeed_m_s**2 * np.pi * diameter_m**2) 
-
-        # Determine angle of attack
-        aero = EmpiricalAero(aero_filenames)
-
-        alpha_from_CL = aero.interp_alpha_from_CL()
-
-        alpha = alpha_from_CL([airspeed_m_s, CL])[0]
-
-        CD = aero.interp_CD([airspeed_m_s, alpha])
-
-        drag_N = 0.5 * density_kg_m3 * airspeed_m_s**2 * np.pi * diameter_m**2 * CD
-
-        thrust_N = drag_N
-
-        unit_thrust_N = thrust_N / num_fwd_prplrs
-
-
-        power_W, rpm = dfan.calculate_power(unit_thrust_N, airspeed_m_s, density_kg_m3, diameter_m)
-
+        # Calculate motor efficiency
         torque_Nm = power_W / (rpm * 2 * np.pi / 60)
-
-        motor = EmpiricalMotor()    
-        interp_func = motor.create_efficiency_interpolator(kernel='thin_plate_spline')
-
-        eta_motor = interp_func([[rpm, torque_Nm]])[0]
-
-        p_elec_motor_W = power_W / eta_motor
+        rpm_torque_points = np.column_stack((rpm, torque_Nm))
+        eta_motor = self.motor.interp_efficiency(rpm_torque_points)
         
+        p_elec_motor_W = power_W / eta_motor
+
         return {
             'thrust_N': thrust_N,
             'power_W': power_W,
@@ -82,14 +70,19 @@ class CruiseSegment:
 if __name__ == "__main__":
 
     # Example usage
-    MTOM_kg = 5500  # Example MTOM
-    density_kgm3 = 1.225
-    diameter_m = 2.7
-    airspeed_m_s = 60
+    vehicle = {}
+    vehicle['mtom_kg'] = 5500  # Example MTOM
+    vehicle['fwd_prplsr_diam_m'] = 2.7
+    vehicle['num_fwd_prplsrs'] = 4
+    vehicle['num_lift_prplsrs'] = 4
+
+    phase = {}
+    phase['len'] = 10
+    phase['density_kgm3'] = 1.225 * np.ones(phase['len'])
+    phase['u_m_s'] = 60 * np.ones(phase['len']) # airspeed in the body axis x-direction
+    phase['aero_filenames'] = glob.glob("data/aero/*.txt")
     
-    # Get all txt files in data folder
-    filenames = glob.glob("data/aero/*.txt")
-    crz = CruiseSegment(MTOM_kg, density_kgm3, diameter_m, airspeed_m_s, filenames, 4, 4)
+    crz = CruisePerformance(vehicle, phase)
     
     results = crz.analyze()
     
