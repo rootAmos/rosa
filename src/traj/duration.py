@@ -20,8 +20,11 @@ class Duration:
 
         if phase['mode'] == 'distance':
 
+
             u_m_s = cumulative_trapezoid(phase['udot_m_s2'], time_dt_s) + phase['u0_m_s']
             u_m_s = np.insert(u_m_s, 0, phase['u0_m_s'])
+            #pdb.set_trace()
+
 
             xdot_m_s = np.cos(phase['gamma_rad']) * u_m_s
             x_m = cumulative_trapezoid(xdot_m_s, time_dt_s) + phase['x0_m']
@@ -62,7 +65,7 @@ class Duration:
                 return self.analyze(phase, dur_s, phase['mode'])
             
             # Optimize duration (bounds prevent negative or extremely large durations)
-            result = minimize_scalar(objective, bounds=(0.1, 100), method='bounded')
+            result = minimize_scalar(objective, bounds=(0.1, 60*60*5), method='bounded')
 
             phase['dur_s'] = result.x
         # end

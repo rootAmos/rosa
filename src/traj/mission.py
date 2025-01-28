@@ -5,6 +5,7 @@ from crz.crz_perfo import CruisePerformance
 from duration import Duration
 import sys
 import os
+import pdb
 #sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
 class Mission:
@@ -27,11 +28,9 @@ class Mission:
         cruise_phase['t0_s'] = hover_phase['t1_s']
         cruise_phase['x0_m'] = hover_phase['x1_m']
         cruise_phase['z0_m'] = hover_phase['z1_m']
-        cruise_phase['u0_m_s'] = hover_phase['u1_m_s']
         
         # Compute duration and kinematics for cruise
-        cruise_phase = self.duration.solve_duration(cruise_phase)
-        
+        cruise_phase = self.duration.solve_duration(cruise_phase)        
         # Then analyze cruise performance
         cruise_phase = self.cruise_analyzer.analyze(vehicle, cruise_phase)
         
@@ -55,51 +54,54 @@ if __name__ == "__main__":
     }
 
     # Define hover phase dictionary
+    len_hover = 10
     hover_phase = {
-        'N': 100,
-        'density_kgm3': 1.05 * np.ones(100),
-        'udot_m_s2': np.zeros(100),
-        'zdot_m_s': np.zeros(100),
+        'N': len_hover,
+        'density_kgm3': 1.05 * np.ones(len_hover),
+        'udot_m_s2': np.zeros(len_hover),
+        'zdot_m_s': np.zeros(len_hover),
         'zddot_m_s2': 0.3,
-        'u0_m_s': 0,
+        'u0_m_s': 1e-3,
         't0_s': 0,
         'x0_m': 0,
         'z0_m': 0,
         'dur_s': 30,  # 30 seconds hover
-        'gamma_rad': np.pi/2 * np.ones(100),  # Point straight up
+        'gamma_rad': np.pi/2 * np.ones(len_hover),  # Point straight up
         'mode': 'time',
         'dur_s': 60
     }
 
     # Define cruise phase dictionary
+    len_cruise = 10
     cruise_phase = {
-        'N': 100,
-        'density_kgm3': 1.05 * np.ones(100),
+        'N': len_cruise,
+        'density_kgm3': 1.05 * np.ones(len_cruise),
         'dist_tgt_m': 200*1000,  # Target distance to travel
-        'udot_m_s2': 0 * np.ones(100),  # Acceleration
-        'gamma_rad': 0 * np.ones(100),  # Level flight
+        'u0_m_s': 65,
+        'udot_m_s2': 0 * np.ones(len_cruise),  # Acceleration
+        'gamma_rad': 0 * np.ones(len_cruise),  # Level flight
         'mode': 'distance',
         'aero_filenames': glob.glob("data/aero/*.txt")
     }
 
     # Create and run mission
     mission = Mission()
-    hover_phase, cruise_phase, hover_results, cruise_results = mission.analyze(vehicle, hover_phase, cruise_phase)
+    hover_phase, cruise_phase = mission.analyze(vehicle, hover_phase, cruise_phase)
 
     # Print results
     print("\nHover Phase Results:")
     print(f"Duration (s): {hover_phase['dur_s']}")
     print(f"Final altitude (m): {hover_phase['z1_m']}")
-    print(f"Thrust per motor (N): {hover_results['thrust_unit_N']}")
-    print(f"Power per motor (kW): {hover_results['power_lift_motor_W']/1000}")
-    print(f"Total Electric Power (kW): {hover_results['power_elec_W']/1000}")
+    print(f"Thrust per motor (N): {hover_phase['thrust_unit_N']}")
+    print(f"Power per motor (kW): {hover_phase['power_lift_motor_W']/1000}")
+    print(f"Total Electric Power (kW): {hover_phase['power_elec_W']/1000}")
 
     print("\nCruise Phase Results:")
     print(f"Duration (s): {cruise_phase['dur_s']}")
     print(f"Distance traveled (m): {cruise_phase['dist_m']}")
-    print(f"Thrust per motor (N): {cruise_results['thrust_unit_N'][0]}")
-    print(f"Power per motor (kW): {cruise_results['power_fwd_motor_W'][0]/1000}")
-    print(f"Total Electric Power (kW): {cruise_results['power_elec_W'][0]/1000}")
+    print(f"Thrust per motor (N): {cruise_phase['thrust_unit_N'][0]}")
+    print(f"Power per motor (kW): {cruise_phase['power_fwd_motor_W'][0]/1000}")
+    print(f"Total Electric Power (kW): {cruise_phase['power_elec_W'][0]/1000}")
 
     # Plot trajectories
     mission.duration.plot_trajectory(hover_phase)
