@@ -29,7 +29,7 @@ class EmpiricalPropeller:
         self.rpm_max = vehicle['lift_prplsr_rpm_max']
         self.coll_min = vehicle['lift_prplsr_beta_min']
         self.coll_max = vehicle['lift_prplsr_beta_max']
-        self.N_sweep = 10000
+        self.N_sweep = 1000
 
     def calculate_power(self, phase, vehicle):
         """Calculate power required for given thrust in hover."""

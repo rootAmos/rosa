@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # Plot trajectories
     #pdb.set_trace()
     phases = [hover_phase, accel_phase, cruise_phase]
-    pdb.set_trace()
+
     plot_mission(phases)
 
 
