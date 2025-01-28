@@ -1,92 +1,107 @@
 import numpy as np
-from traj.hvr.hover_perfo import analyze_hover_performance
-from traj.crz.crz_perfo import CruiseSegment
+import glob
+from hvr.hover_perfo import HoverPerformance
+from crz.crz_perfo import CruisePerformance
+from duration import Duration
+import sys
+import os
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
-class MissionSegment:
-    def __init__(self, MTOM_kg, density_kg_m3, diameter_m, airspeeds_m_s, aero_filenames, num_lift_prplrs=8, num_fwd_prplrs=4):
-        """
-        Initialize mission segment with velocity profile.
-        
-        Args:
-            MTOM_kg: Maximum takeoff mass (kg)
-            density_kg_m3: Air density (kg/m³)
-            diameter_m: Propeller diameter (m)
-            airspeeds_m_s: Array of airspeeds (m/s)
-            aero_filenames: List of aero data files
-            num_lift_prplrs: Number of lift propellers
-            num_fwd_prplrs: Number of forward propellers
-        """
-        self.MTOM_kg = MTOM_kg
-        self.density_kg_m3 = density_kg_m3
-        self.diameter_m = diameter_m
-        self.airspeeds_m_s = np.array(airspeeds_m_s)
-        self.aero_filenames = aero_filenames
-        self.num_lift_prplrs = num_lift_prplrs
-        self.num_fwd_prplrs = num_fwd_prplrs
+class Mission:
+    def __init__(self):
+        self.hover_analyzer = HoverPerformance()
+        self.cruise_analyzer = CruisePerformance({'aero_filenames': glob.glob("data/aero/*.txt")})
+        self.duration = Duration({})
 
-    def analyze(self):
-        """Analyze complete mission segment."""
-        results = []
+    def analyze(self, vehicle, hover_phase, cruise_phase):
+        """
+        Analyze a complete mission with hover and cruise segments
+        """
+        # First compute duration and kinematics for hover
+        hover_phase = self.duration.solve_duration(hover_phase)
         
-        for v in self.airspeeds_m_s:
-            if v < 1.0:  # Hover condition (near-zero forward speed)
-                segment_results = analyze_hover_performance(
-                    self.MTOM_kg, 
-                    self.density_kg_m3, 
-                    self.diameter_m
-                )
-                segment_results['segment_type'] = 'hover'
-                segment_results['airspeed_m_s'] = v
-                
-            else:  # Forward flight
-                crz = CruiseSegment(
-                    self.MTOM_kg,
-                    self.density_kg_m3,
-                    self.diameter_m,
-                    v,
-                    self.aero_filenames,
-                    self.num_lift_prplrs,
-                    self.num_fwd_prplrs
-                )
-                segment_results = crz.analyze()
-                segment_results['segment_type'] = 'cruise'
-                segment_results['airspeed_m_s'] = v
-                
-            results.append(segment_results)
-            
-        return results
+        # Then analyze hover performance
+        hover_phase = self.hover_analyzer.analyze(vehicle, hover_phase)
+        
+        # Update cruise initial conditions based on hover results
+        cruise_phase['t0_s'] = hover_phase['t1_s']
+        cruise_phase['x0_m'] = hover_phase['x1_m']
+        cruise_phase['z0_m'] = hover_phase['z1_m']
+        cruise_phase['u0_m_s'] = hover_phase['u1_m_s']
+        
+        # Compute duration and kinematics for cruise
+        cruise_phase = self.duration.solve_duration(cruise_phase)
+        
+        # Then analyze cruise performance
+        cruise_phase = self.cruise_analyzer.analyze(vehicle, cruise_phase)
+        
+        return hover_phase, cruise_phase
 
 if __name__ == "__main__":
-    # Example usage
-    MTOM_kg = 5500
-    density_kg_m3 = 1.225
-    diameter_m = 2.7
-    
-    # Define velocity profile (hover -> transition -> cruise -> hover)
-    airspeeds = [0, 15, 30, 60, 60, 30, 15, 0]
-    
-    
-    # Get aero data files
-    import glob
-    filenames = glob.glob("data/aero/*.txt")
-    
-    # Create and analyze mission
-    mission = MissionSegment(MTOM_kg, density_kg_m3, diameter_m, airspeeds, filenames)
-    results = mission.analyze()
-    
+    # Define vehicle dictionary
+    vehicle = {
+        'mtom_kg': 5500,
+        'fwd_prplsr_diam_m': 1.58,
+        'lift_prplsr_diam_m': 3.09,
+        'num_fwd_prplsrs': 2,
+        'num_lift_prplsrs': 8,
+        'fwd_prplsr_rpm_min': 2200,
+        'fwd_prplsr_rpm_max': 3000,
+        'lift_prplsr_rpm_min': 2200,
+        'lift_prplsr_rpm_max': 3000,
+        'wingarea_m2': 23,
+        'lift_prplsr_beta_min': -7,
+        'lift_prplsr_beta_max': 21
+    }
+
+    # Define hover phase dictionary
+    hover_phase = {
+        'N': 100,
+        'density_kgm3': 1.05 * np.ones(100),
+        'udot_m_s2': np.zeros(100),
+        'zdot_m_s': np.zeros(100),
+        'zddot_m_s2': 0.3,
+        'u0_m_s': 0,
+        't0_s': 0,
+        'x0_m': 0,
+        'z0_m': 0,
+        'dur_s': 30,  # 30 seconds hover
+        'gamma_rad': np.pi/2 * np.ones(100),  # Point straight up
+        'mode': 'time',
+        'dur_s': 60
+    }
+
+    # Define cruise phase dictionary
+    cruise_phase = {
+        'N': 100,
+        'density_kgm3': 1.05 * np.ones(100),
+        'dist_tgt_m': 200*1000,  # Target distance to travel
+        'udot_m_s2': 0 * np.ones(100),  # Acceleration
+        'gamma_rad': 0 * np.ones(100),  # Level flight
+        'mode': 'distance',
+        'aero_filenames': glob.glob("data/aero/*.txt")
+    }
+
+    # Create and run mission
+    mission = Mission()
+    hover_phase, cruise_phase, hover_results, cruise_results = mission.analyze(vehicle, hover_phase, cruise_phase)
+
     # Print results
-    print("\nMission Analysis Results:")
-    print("-" * 50)
-    for i, res in enumerate(results):
-        print(f"\nSegment {i+1} ({res['segment_type']}):")
-        print(f"Airspeed: {res['airspeed_m_s']:.1f} m/s")
-        if res['segment_type'] == 'hover':
-            print(f"Thrust per motor: {res['thrust_per_motor_N']:.1f} N")
-            print(f"Power per motor: {res['power_per_motor_W']/1000:.1f} kW")
-            print(f"Power elec per motor: {res['power_elec_per_motor_W']/1000:.1f} kW")
-        else:
-            print(f"Total thrust: {res['thrust_N'][0]:.1f} N")
-            print(f"Power per motor: {res['power_W'][0]/1000:.1f} kW")
-            print(f"Power elec per motor: {res['power_elec_W'][0]/1000:.1f} kW")
-        print(f"Operating RPM: {res['operating_rpm'][0]:.1f}")
-        print(f"Motor efficiency: {res['eta_motor']:.3f}")
+    print("\nHover Phase Results:")
+    print(f"Duration (s): {hover_phase['dur_s']}")
+    print(f"Final altitude (m): {hover_phase['z1_m']}")
+    print(f"Thrust per motor (N): {hover_results['thrust_unit_N']}")
+    print(f"Power per motor (kW): {hover_results['power_lift_motor_W']/1000}")
+    print(f"Total Electric Power (kW): {hover_results['power_elec_W']/1000}")
+
+    print("\nCruise Phase Results:")
+    print(f"Duration (s): {cruise_phase['dur_s']}")
+    print(f"Distance traveled (m): {cruise_phase['dist_m']}")
+    print(f"Thrust per motor (N): {cruise_results['thrust_unit_N'][0]}")
+    print(f"Power per motor (kW): {cruise_results['power_fwd_motor_W'][0]/1000}")
+    print(f"Total Electric Power (kW): {cruise_results['power_elec_W'][0]/1000}")
+
+    # Plot trajectories
+    mission.duration.plot_trajectory(hover_phase)
+    mission.duration.plot_trajectory(cruise_phase)
+

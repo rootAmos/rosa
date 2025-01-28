@@ -8,69 +8,82 @@ from tools.lift_prop_import import EmpiricalPropeller
 from tools.emotor_import_rbf import EmpiricalMotor
 
 class HoverPerformance:
-    def __init__(self, MTOM_kg, density_kgm3, diameter_m, num_lift_prplrs):
-        self.MTOM_kg = MTOM_kg
-        self.density_kgm3 = density_kgm3
-        self.diameter_m = diameter_m
-        self.num_lift_prplrs = num_lift_prplrs
+    def __init__(self):
+        pass
 
-    def analyze(self):
+    def analyze(self, vehicle, phase):
             
         """
         Analyze hover performance for 8-motor configuration.
         
         Args:
-            MTOM_kg: Maximum takeoff mass (kg)
-            density_kgm3: Air density (kg/m³)
-            diameter_m: Propeller diameter (m)
+            vehicle: Vehicle data
+            phase: Phase data
         """
-        # Load propeller and motor data
-        prop = EmpiricalPropeller()
-    
-        # Unpack Self
-        MTOM_kg = self.MTOM_kg
-        density_kgm3 = self.density_kgm3
-        diameter_m = self.diameter_m
-        num_lift_prplrs = self.num_lift_prplrs
+
+        # Unpack vehicle and phase
+        mtom_kg = vehicle['mtom_kg']
+        density_kgm3 = phase['density_kgm3']
+        num_lift_prplsrs = vehicle['num_lift_prplsrs']
+
+        
 
         # Calculate required thrust per motor (weight / 8)
-        weight_N = MTOM_kg * 9.806
-        thrust_per_motor_N = (weight_N + acc_z_m_s2 * MTOM_kg) / num_lift_prplrs
-
-        power_per_motor_W, rpm, coll, error, mach_tip = prop.calculate_power(thrust_per_motor_N, density_kgm3, diameter_m)
+        weight_N = mtom_kg * 9.806
+        phase['thrust_unit_N'] = (weight_N + phase['zddot_m_s2'] * mtom_kg) / num_lift_prplsrs
+# Load propeller and motor data
+        prop = EmpiricalPropeller(vehicle)
+    
+        power_lift_motor_W, rpm_lift_motor, coll = prop.calculate_power(phase, vehicle)
         
-        torque_Nm = power_per_motor_W / (rpm * 2 * np.pi / 60)
         
         motor = EmpiricalMotor()    
         interp_func = motor.create_efficiency_interpolator(kernel='thin_plate_spline')
+        torque_lift_motor_Nm = power_lift_motor_W / (rpm_lift_motor * 2 * np.pi / 60)
+        rpm_torque_points = np.column_stack((rpm_lift_motor, torque_lift_motor_Nm))
+        eta_lift_motor = interp_func(rpm_torque_points)
 
-        eta_motor = interp_func([[rpm, torque_Nm]])[0]
-
-        p_elec_motor_W = power_per_motor_W / eta_motor
+        p_elec_motor_W = power_lift_motor_W / eta_lift_motor * num_lift_prplsrs
         
-        return {
-            'thrust_per_motor_N': thrust_per_motor_N,
-            'power_per_motor_W': power_per_motor_W,
-            'power_elec_per_motor_W': p_elec_motor_W,
-            'operating_rpm': rpm,
-            'collective_deg': coll,
-            'eta_motor': eta_motor,
-            'mach_tip': mach_tip
-        }
+        # Pack phase
+        phase['power_lift_motor_W'] = power_lift_motor_W
+        phase['power_elec_W'] = p_elec_motor_W
+        phase['rpm_lift_motor'] = rpm_lift_motor
+        phase['beta_lift_motor'] = coll
+        phase['eta_lift_motor'] = eta_lift_motor
+        phase['torque_lift_motor_Nm'] = torque_lift_motor_Nm
+        phase['rpm_lift_motor'] = rpm_lift_motor
+
+        return phase
 
 if __name__ == "__main__":
-    # Example usage
-    MTOM_kg = 5500  # Example MTOM
-    density_kgm3 = 1.225
-    diameter_m = 2.7
-    
-    results = analyze_hover_performance(MTOM_kg, density_kgm3, diameter_m)
+
+    phase = {}
+    phase['N'] = 10
+    phase['density_kgm3'] = 1.05 * np.ones(phase['N'])
+    phase['udot_m_s2'] = 0 * np.ones(phase['N'])
+    phase['zdot_m_s'] = np.zeros(phase['N'])
+    phase['zddot_m_s2'] = 0.3
+    phase['z0_m'] = 0
+
+    vehicle = {}
+    vehicle['mtom_kg'] = 5500  # Example MTOM
+    vehicle['lift_prplsr_diam_m'] = 3.09
+    vehicle['num_lift_prplsrs'] = 8
+    vehicle['lift_prplsr_rpm_min'] = 2200
+    vehicle['lift_prplsr_rpm_max'] = 3000
+    vehicle['wingarea_m2'] = 23
+    vehicle['lift_prplsr_beta_min'] = -7
+    vehicle['lift_prplsr_beta_max'] = 21
+
+    hvr = HoverPerformance()
+    results = hvr.analyze(vehicle, phase)
     
     print("\nHover Performance Results:")
-    print(f"Thrust per motor: {results['thrust_per_motor_N']:.1f} N")
-    print(f"Power per motor: {results['power_per_motor_W']/1000:.1f} kW")
-    print(f"Power elec per motor: {results['power_elec_per_motor_W']/1000:.1f} kW")
-    print(f"Operating RPM: {results['operating_rpm']:.1f}")
-    print(f"Collective pitch: {results['collective_deg']:.1f}°")
-    print(f"Motor efficiency: {results['eta_motor']:.1f}")
-    print(f"Mach tip: {results['mach_tip']:.3f}")
+    print(f"Thrust per motor (N): {results['thrust_unit_N']}")
+    print(f"Power per motor (kW): {results['power_lift_motor_W']/1000}")
+    print(f"Total Electric Power (kW): {results['power_elec_W']/1000}")
+    print(f"Operating RPM: {results['rpm_lift_motor']}")
+    print(f"Collective pitch (deg): {results['beta_lift_motor']}")
+    print(f"Motor efficiency: {results['eta_lift_motor']}")
+    print(f"Torque (Nm): {results['torque_lift_motor_Nm']}")

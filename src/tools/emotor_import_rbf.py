@@ -150,12 +150,16 @@ if __name__ == "__main__":
     # Create 'thin_plate_spline'
     interp_func = motor.create_efficiency_interpolator(kernel='thin_plate_spline')
     
-    # Plot efficiency map
-    motor.plot_efficiency_map(interp_func, rpm_max, tq_max)
+    # Test interpolator at multiple points
+    phase = {}
+    phase['N'] = 5
+    phase['operating_rpm'] = rpm_opt * np.ones(phase['N'])
+    phase['torque_Nm'] = tq_opt * np.ones(phase['N'])
     
-    # Perform cross-validation
-    #motor.plot_cross_validation(kernel='thin_plate_spline')
-    
-    # Test interpolator at optimal point
-    eff = interp_func([[rpm_opt, tq_opt]])[0]
-    print(f"Efficiency at optimal point: {eff:.3f}")
+    # Vectorized efficiency calculation
+    points = np.column_stack([
+        phase['operating_rpm'],
+        phase['torque_Nm']
+    ])
+    eff = interp_func(points)
+    print(f"Efficiency at optimal points: {eff}")

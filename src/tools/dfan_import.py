@@ -17,7 +17,7 @@ class EmpiricalDfan:
 
         self.data_dir = data_dir
         self.load_dfan_data()
-        self.N_sweep = 500
+        self.N_sweep = 1000
         self.rpm_min = vehicle['fwd_prplsr_rpm_min']
         self.rpm_max = vehicle['fwd_prplsr_rpm_max']
 
@@ -55,8 +55,8 @@ class EmpiricalDfan:
             rpm: Required RPM
         """
         # Convert to imperial units for coefficient calculations
-        thrust_lbf = phase['thrust_N'] * 0.224809
-        airspeed_fts = phase['airspeed_ms'] * 3.28084
+        thrust_lbf = phase['thrust_unit_N'] * 0.224809
+        airspeed_fts = phase['u_m_s'] * 3.28084
         density_slugft3 = phase['density_kgm3'] * 0.00194032
         diameter_ft = vehicle['fwd_prplsr_diam_m'] * 3.28084
         
@@ -70,6 +70,12 @@ class EmpiricalDfan:
 
         min_error_idx = np.argmin(error, axis = 0)
         rpm = rpm_sweep[min_error_idx].flatten()
+
+        min_errors = error[min_error_idx, np.arange(phase['N'])]
+        min_errors_rel = min_errors / thrust_lbf
+        if np.any(min_errors_rel > 0.05):
+            print("Warning: Large errors in power calculation")
+        # end
         
         # Calculate final coefficients
         n = rpm / 60
@@ -99,7 +105,7 @@ class EmpiricalDfan:
         """
         # Convert to imperial units for coefficient calculations
         power_lbfts = phase['power_W'] * 0.737562
-        airspeed_fts = phase['airspeed_ms'] * 3.28084
+        airspeed_fts = phase['u_m_s'] * 3.28084
         density_slugft3 = phase['density_kgm3'] * 0.00194032
         diameter_ft = vehicle['fwd_prplsr_diam_m'] * 3.28084
         
@@ -112,6 +118,13 @@ class EmpiricalDfan:
         error = np.abs(power_calc_sweep_lbfts - np.broadcast_to(power_lbfts, power_calc_sweep_lbfts.shape))
 
         min_error_idx = np.argmin(error, axis = 0)
+
+        min_errors = error[min_error_idx, np.arange(phase['N'])]
+        min_errors_rel = min_errors / power_lbfts
+        if np.any(min_errors_rel > 0.05):
+            print("Warning: Large errors in thrust calculation")
+        # end
+
         rpm = rpm_sweep[min_error_idx].flatten()
         
         # Calculate final coefficients
@@ -171,8 +184,8 @@ if __name__ == "__main__":
 
     
     L_D = 18
-    phase['thrust_N'] = 5700*9.806/L_D / 2 * np.ones(N_phase)
-    phase['airspeed_ms'] = 74 * np.ones(N_phase)
+    phase['thrust_unit_N'] = 5700*9.806/L_D / 2 * np.ones(N_phase)
+    phase['u_m_s'] = 74 * np.ones(N_phase)
     phase['density_kgm3'] = 1.225 * np.ones(N_phase)
     vehicle['fwd_prplsr_diam_m'] = 1.58
     vehicle['fwd_prplsr_rpm_min'] = 500
@@ -186,7 +199,7 @@ if __name__ == "__main__":
     power_W, rpm_fwd = dfan.calculate_power(vehicle, phase)
     
     print("\nForward calculation:")
-    print(f"Input thrust (N): {phase['thrust_N']}")
+    print(f"Input thrust (N): {phase['thrust_unit_N']}")
     print(f"Required power (kW): {power_W/1000}")
     print(f"Required RPM: {rpm_fwd}")
     
@@ -201,7 +214,7 @@ if __name__ == "__main__":
     
     # Verify calculations match
     print("\nVerification:")
-    print(f"Thrust error (N): {np.abs(phase['thrust_N'] - thrust_rev)}")
+    print(f"Thrust error (N): {np.abs(phase['thrust_unit_N'] - thrust_rev)}")
     print(f"RPM error: {np.abs(rpm_fwd - rpm_rev)}")
     
     # Plot curves

@@ -29,15 +29,15 @@ class EmpiricalPropeller:
         self.rpm_max = vehicle['lift_prplsr_rpm_max']
         self.coll_min = vehicle['lift_prplsr_beta_min']
         self.coll_max = vehicle['lift_prplsr_beta_max']
-        self.N_sweep = 100
+        self.N_sweep = 1000
 
     def calculate_power(self, phase, vehicle):
         """Calculate power required for given thrust in hover."""
         # Convert to imperial units
-        thrust_req_lbf = phase['thrust_total_N'] * 0.224809
+        thrust_req_lbf = phase['thrust_unit_N'] * 0.224809
         density_slugft3 = phase['density_kgm3'] * 0.00194032
-        diameter_ft = vehicle['lift_prplsr_diameter_m'] * 3.28084
-        radius_ft = diameter_ft/2
+        diam_ft = vehicle['lift_prplsr_diam_m'] * 3.28084
+        radius_ft = diam_ft/2
 
         # Create sweep points
         rpm_sweep = np.linspace(self.rpm_min, self.rpm_max, self.N_sweep)[:, np.newaxis]
@@ -50,18 +50,20 @@ class EmpiricalPropeller:
         # Pass to interpolator
         CT = self.CT_interp(rpm_all, coll_all)
         
-        # Get CT for all combinations
-        # CT = self.CT_interp(rpm_sweep, coll_sweep)
-
-        
         # Calculate thrust matrix
         vtip_ft_s = rpm_all * radius_ft * np.pi / 60 * 2
         thrust_calc_lbf = CT * density_slugft3 * vtip_ft_s**2 * radius_ft**2 * np.pi
         
         # Find best match
-
         error = abs(thrust_calc_lbf - thrust_req_lbf)
         idx = np.argmin(error, axis=0)
+
+        min_errors = error[idx, np.arange(phase['N'])]
+        min_errors_rel = min_errors / thrust_req_lbf
+        if np.any(min_errors_rel > 0.05):
+            print("Warning: Large errors in power calculation")
+        # end
+
         rpm = rpm_all[idx].flatten()
         coll = coll_all[idx].flatten()
         
@@ -82,8 +84,8 @@ class EmpiricalPropeller:
         # Convert to imperial units
         power_lbfts = phase['power_W'] * 0.737562
         density_slugft3 = phase['density_kgm3'] * 0.00194032
-        diameter_ft = vehicle['lift_prplsr_diameter_m'] * 3.28084
-        radius_ft = diameter_ft/2
+        diam_ft = vehicle['lift_prplsr_diam_m'] * 3.28084
+        radius_ft = diam_ft/2
 
         # Create sweep points
         rpm_sweep = np.linspace(self.rpm_min, self.rpm_max, self.N_sweep)[:, np.newaxis]
@@ -104,6 +106,13 @@ class EmpiricalPropeller:
         # Find best match
         error = abs(power_calc_lbfts - power_lbfts)
         idx = np.argmin(error, axis=0)
+
+        min_errors = error[idx, np.arange(phase['N'])]
+        min_errors_rel = min_errors / power_lbfts
+        if np.any(min_errors_rel > 0.05):
+            print("Warning: Large errors in thrust calculation")
+        # end
+
         rpm = rpm_all[idx].flatten()
         coll = coll_all[idx].flatten()
         
@@ -124,12 +133,12 @@ if __name__ == "__main__":
     vehicle['lift_prplsr_rpm_max'] = 2700
     vehicle['lift_prplsr_beta_min'] = -7
     vehicle['lift_prplsr_beta_max'] = 21
-    vehicle['lift_prplsr_diameter_m'] = 2.7
+    vehicle['lift_prplsr_diam_m'] = 2.7
 
 
     phase = {}
     phase['N_phase'] = 10
-    phase['thrust_total_N'] = 5500*(1.1*9.806)/8  * np.ones(phase['N_phase'])
+    phase['thrust_unit_N'] = 5500*(1.1*9.806)/8  * np.ones(phase['N_phase'])
     phase['density_kgm3'] = 1.225 * np.ones(phase['N_phase'])
 
     # Forward calculation
@@ -141,7 +150,7 @@ if __name__ == "__main__":
     np.set_printoptions(precision=3, suppress=True)
 
     print("\nForward calculation:")
-    print(f"Input thrust: {phase['thrust_total_N']} N")
+    print(f"Input thrust: {phase['thrust_unit_N']} N")
     print(f"Required power: {power_W/1000} kW")
     print(f"Required RPM: {rpm_lift}")
     print(f"Collective angle: {coll} degrees")
@@ -150,11 +159,11 @@ if __name__ == "__main__":
 
 
     # Reverse calculation
-    thrust_total_N, rpm_rev, coll = prop.calculate_thrust(phase, vehicle)
+    thrust_unit_N, rpm_rev, coll = prop.calculate_thrust(phase, vehicle)
     
     print("\nReverse calculation:")
     print(f"Input power: {phase['power_W']/1000} kW")
-    print(f"Available thrust: {thrust_total_N} N")
+    print(f"Available thrust: {thrust_unit_N} N")
     print(f"Required RPM: {rpm_rev}")
     print(f"Collective angle: {coll} degrees")
 
