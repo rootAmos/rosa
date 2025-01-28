@@ -29,12 +29,12 @@ class EmpiricalPropeller:
         self.rpm_max = vehicle['lift_prplsr_rpm_max']
         self.coll_min = vehicle['lift_prplsr_beta_min']
         self.coll_max = vehicle['lift_prplsr_beta_max']
-        self.N_sweep = 1000
+        self.N_sweep = 10000
 
     def calculate_power(self, phase, vehicle):
         """Calculate power required for given thrust in hover."""
         # Convert to imperial units
-        thrust_req_lbf = phase['thrust_unit_N'] * 0.224809
+        thrust_req_lbf = phase['ver_thrust_unit_N'] * 0.224809
         density_slugft3 = phase['density_kgm3'] * 0.00194032
         diam_ft = vehicle['lift_prplsr_diam_m'] * 3.28084
         radius_ft = diam_ft/2
@@ -61,7 +61,7 @@ class EmpiricalPropeller:
         min_errors = error[idx, np.arange(phase['N'])]
         min_errors_rel = min_errors / thrust_req_lbf
         if np.any(min_errors_rel > 0.05):
-            print("Warning: Large errors in power calculation")
+            print("Warning: Large errors in propeller power calculation")
         # end
 
         rpm = rpm_all[idx].flatten()
@@ -82,7 +82,7 @@ class EmpiricalPropeller:
         from itertools import product
         
         # Convert to imperial units
-        power_lbfts = phase['power_W'] * 0.737562
+        power_lbfts = phase['power_lift_motor_W'] * 0.737562
         density_slugft3 = phase['density_kgm3'] * 0.00194032
         diam_ft = vehicle['lift_prplsr_diam_m'] * 3.28084
         radius_ft = diam_ft/2
@@ -109,8 +109,9 @@ class EmpiricalPropeller:
 
         min_errors = error[idx, np.arange(phase['N'])]
         min_errors_rel = min_errors / power_lbfts
+
         if np.any(min_errors_rel > 0.05):
-            print("Warning: Large errors in thrust calculation")
+            print("Warning: Large errors in propeller thrust calculation")
         # end
 
         rpm = rpm_all[idx].flatten()
@@ -123,6 +124,8 @@ class EmpiricalPropeller:
         vtip_ft_s = rpm * radius_ft * np.pi / 60 * 2
         thrust_lbf = CT * density_slugft3 * vtip_ft_s**2 * radius_ft**2 * np.pi
         thrust_N = thrust_lbf * 4.44822
+
+        pdb.set_trace()
         
         return thrust_N, rpm, coll
 
@@ -138,7 +141,7 @@ if __name__ == "__main__":
 
     phase = {}
     phase['N_phase'] = 10
-    phase['thrust_unit_N'] = 5500*(1.1*9.806)/8  * np.ones(phase['N_phase'])
+    phase['ver_thrust_unit_N'] = 5500*(1.1*9.806)/8  * np.ones(phase['N_phase'])
     phase['density_kgm3'] = 1.225 * np.ones(phase['N_phase'])
 
     # Forward calculation
@@ -150,20 +153,20 @@ if __name__ == "__main__":
     np.set_printoptions(precision=3, suppress=True)
 
     print("\nForward calculation:")
-    print(f"Input thrust: {phase['thrust_unit_N']} N")
+    print(f"Input thrust: {phase['ver_thrust_unit_N']} N")
     print(f"Required power: {power_W/1000} kW")
     print(f"Required RPM: {rpm_lift}")
     print(f"Collective angle: {coll} degrees")
 
-    phase['power_W'] = power_W
+    phase['power_lift_motor_W'] = power_W
 
 
     # Reverse calculation
-    thrust_unit_N, rpm_rev, coll = prop.calculate_thrust(phase, vehicle)
+    ver_thrust_unit_N, rpm_rev, coll = prop.calculate_thrust(phase, vehicle)
     
     print("\nReverse calculation:")
-    print(f"Input power: {phase['power_W']/1000} kW")
-    print(f"Available thrust: {thrust_unit_N} N")
+    print(f"Input power: {phase['power_lift_motor_W']/1000} kW")
+    print(f"Available thrust: {ver_thrust_unit_N} N")
     print(f"Required RPM: {rpm_rev}")
     print(f"Collective angle: {coll} degrees")
 

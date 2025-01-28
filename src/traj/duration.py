@@ -12,13 +12,13 @@ class Duration:
 
 
         dt_s = dur_s / phase['N']
-        time_dt_s = np.arange(phase['t0_s'], phase['t0_s'] + dur_s, dt_s)
+        time_dt_s = np.linspace(phase['t0_s'], phase['t0_s'] + dur_s, phase['N'])
 
-        if phase['mode'] == 'time':
+        if phase['end_cond'] == 'time':
             pass
         # end
 
-        if phase['mode'] == 'distance':
+        if phase['end_cond'] == 'distance':
 
 
             u_m_s = cumulative_trapezoid(phase['udot_m_s2'], time_dt_s) + phase['u0_m_s']
@@ -37,32 +37,41 @@ class Duration:
 
             # end
 
-        elif phase['mode'] == 'accel':
+        elif phase['end_cond'] == 'accel':
+
 
             u_m_s = cumulative_trapezoid(phase['udot_m_s2'], time_dt_s) + phase['u0_m_s']
             u_m_s = np.insert(u_m_s, 0, phase['u0_m_s'])
             error = np.abs(u_m_s[-1] - phase['u1_tgt_m_s'])
 
             return error
+        # end
 
-        elif phase['mode'] == 'alt':
+        elif phase['end_cond'] == 'alt':
 
-            u_m_s = cumulative_trapezoid(phase['udot_m_s2'], time_dt_s) + phase['u0_m_s']
-            u_m_s = np.insert(u_m_s, 0, phase['u0_m_s'])
-            zdot_m_s = np.sin(phase['gamma_rad']) * u_m_s
+            if phase['ver_thrust']:
+                #pdb.set_trace()
+                zdot_m_s = cumulative_trapezoid(phase['zddot_m_s2'], time_dt_s) + phase['zdot0_m_s']
+                zdot_m_s = np.insert(zdot_m_s, 0, phase['zdot0_m_s'])
+            else:
+                u_m_s = cumulative_trapezoid(phase['udot_m_s2'], time_dt_s) + phase['u0_m_s']
+                u_m_s = np.insert(u_m_s, 0, phase['u0_m_s'])
+                zdot_m_s = np.sin(phase['gamma_rad']) * u_m_s
+            # end
 
             z_m = cumulative_trapezoid(zdot_m_s, time_dt_s) + phase['z0_m']
             z_m = np.insert(z_m, 0, phase['z0_m'])
+
             error = np.abs(z_m[-1] - phase['z1_tgt_m'])
 
             return error
         
     def solve_duration(self, phase):
 
-        if phase['mode'] != 'time':
+        if phase['end_cond'] != 'time':
 
             def objective(dur_s):
-                return self.analyze(phase, dur_s, phase['mode'])
+                return self.analyze(phase, dur_s, phase['end_cond'])
             
             # Optimize duration (bounds prevent negative or extremely large durations)
             result = minimize_scalar(objective, bounds=(0.1, 60*60*5), method='bounded')
@@ -80,13 +89,19 @@ class Duration:
         # Recompute phase results
 
         phase['dt_s'] = phase['dur_s'] / phase['N']
-        phase['time_s'] = np.arange(phase['t0_s'], phase['t0_s'] + phase['dur_s'], phase['dt_s'])
-
-
+        phase['time_s'] = np.linspace(phase['t0_s'], phase['t0_s'] + phase['dur_s'], phase['N'])
+        
         u_m_s = cumulative_trapezoid(phase['udot_m_s2'], phase['time_s']) + phase['u0_m_s']
         u_m_s = np.insert(u_m_s, 0, phase['u0_m_s'])
         xdot_m_s = np.cos(phase['gamma_rad']) * u_m_s
-        zdot_m_s = np.sin(phase['gamma_rad']) * u_m_s
+
+
+        if phase['ver_thrust']:
+           zdot_m_s = cumulative_trapezoid(phase['zddot_m_s2'], phase['time_s']) + phase['zdot0_m_s']
+           zdot_m_s = np.insert(zdot_m_s, 0, phase['zdot0_m_s'])
+        else:
+            zdot_m_s = np.sin(phase['gamma_rad']) * u_m_s
+        # end
 
         x_m = cumulative_trapezoid(xdot_m_s, phase['time_s']) + phase['x0_m']
         x_m = np.insert(x_m, 0, phase['x0_m'])
@@ -112,60 +127,42 @@ class Duration:
     # end
 
     def plot_trajectory(self, phase):
-        fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+        # Create two separate figures: position/velocity and acceleration
+        fig1, axes1 = plt.subplots(2, 2, figsize=(12, 8))
+        fig2, ax_accel = plt.subplots(figsize=(10, 4))
         
         # X-axis quantities (first column)
-        axes[0,0].plot(phase['time_s'], phase['x_m'], label='x (m)')
-        axes[0,0].set_ylabel('Position (m)')
-        axes[0,0].grid(True)
-        axes[0,0].legend()
+        axes1[0,0].plot(phase['time_s'], phase['x_m'], label='x (m)')
+        axes1[0,0].set_ylabel('Position (m)')
+        axes1[0,0].grid(True)
+        axes1[0,0].legend()
         
-        axes[1,0].plot(phase['time_s'], phase['xdot_m_s'], label='$\dot{x}$ (m/s)')
-        axes[1,0].set_ylabel('Velocity (m/s)')
-        axes[1,0].grid(True)
-        axes[1,0].legend()
+        axes1[1,0].plot(phase['time_s'], phase['xdot_m_s'], label='$\dot{x}$ (m/s)')
+        axes1[1,0].set_ylabel('Velocity (m/s)')
+        axes1[1,0].set_xlabel('Time (s)')
+        axes1[1,0].grid(True)
+        axes1[1,0].legend()
         
-        # X acceleration
-        axes[2,0].plot(phase['time_s'], phase['udot_m_s2'], label='$\ddot{u}$ (m/s²)')
-        axes[2,0].set_ylabel('Acceleration (m/s²)')
-        axes[2,0].set_xlabel('Time (s)')
-        axes[2,0].grid(True)
-        axes[2,0].legend()
+        # Z-axis quantities (second column)
+        axes1[0,1].plot(phase['time_s'], phase['z_m'], label='z (m)')
+        #axes1[0,1].set_ylabel('Position (m)')
+        axes1[0,1].grid(True)
+        axes1[0,1].legend()
         
-        # Y-axis quantities (middle column) - all empty
-        axes[0,1].grid(True)
-        axes[1,1].grid(True)
-        axes[2,1].grid(True)
-        axes[2,1].set_xlabel('Time (s)')
+        axes1[1,1].plot(phase['time_s'], phase['zdot_m_s'], label='$\dot{z}$ (m/s)')
+        #axes1[1,1].set_ylabel('Velocity (m/s)')
+        axes1[1,1].set_xlabel('Time (s)')
+        axes1[1,1].grid(True)
+        axes1[1,1].legend()
         
-        # Z-axis quantities (third column)
-        axes[0,2].plot(phase['time_s'], phase['z_m'], label='z (m)')
-        axes[0,2].set_ylabel('Position (m)')
-        axes[0,2].grid(True)
-        axes[0,2].legend()
+        # Body acceleration (separate figure)
+        ax_accel.plot(phase['time_s'], phase['udot_m_s2'], label='$\ddot{u}$ (m/s²)')
+        ax_accel.set_ylabel('Body Acceleration (m/s²)')
+        ax_accel.set_xlabel('Time (s)')
+        ax_accel.grid(True)
+        ax_accel.legend()
         
-        axes[1,2].plot(phase['time_s'], phase['zdot_m_s'], label='$\dot{z}$ (m/s)')
-        axes[1,2].set_ylabel('Velocity (m/s)')
-        axes[1,2].grid(True)
-        axes[1,2].legend()
-        
-        # No z acceleration to plot in third row
-        axes[2,2].set_ylabel('Acceleration (m/s²)')
-        axes[2,2].set_xlabel('Time (s)')
-        axes[2,2].grid(True)
-        
-        plt.tight_layout(h_pad=1.0, w_pad=1.0, pad=1.5)
-        
-        # Create separate figure for body velocity
-        fig2, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(phase['time_s'], phase['u_m_s'], label='u (m/s)')
-        ax.set_ylabel('Velocity (m/s)')
-        ax.set_xlabel('Time (s)')
-        ax.set_title('Body Velocities')
-        ax.grid(True)
-        ax.legend()
         plt.tight_layout()
-        
         plt.show()
 
     
@@ -182,7 +179,7 @@ if __name__ == "__main__":
     phase['dist_tgt_m'] = 1000 
     phase['udot_m_s2'] = 0.1 * np.ones(phase['N'])
     phase['gamma_rad'] = 0 * np.ones(phase['N'])
-    phase['mode'] = 'distance'
+    phase['end_cond'] = 'distance'
 
     dur = Duration(phase)
     phase = dur.solve_duration(phase)

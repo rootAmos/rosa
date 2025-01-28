@@ -30,7 +30,7 @@ class HoverPerformance:
 
         # Calculate required thrust per motor (weight / 8)
         weight_N = mtom_kg * 9.806
-        phase['thrust_unit_N'] = (weight_N + phase['zddot_m_s2'] * mtom_kg) / num_lift_prplsrs
+        phase['ver_thrust_unit_N'] = (weight_N + phase['zddot_m_s2'] * mtom_kg) / num_lift_prplsrs
 # Load propeller and motor data
         prop = EmpiricalPropeller(vehicle)
     
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     results = hvr.analyze(vehicle, phase)
     
     print("\nHover Performance Results:")
-    print(f"Thrust per motor (N): {results['thrust_unit_N']}")
+    print(f"Thrust per motor (N): {results['ver_thrust_unit_N']}")
     print(f"Power per motor (kW): {results['power_lift_motor_W']/1000}")
     print(f"Total Electric Power (kW): {results['power_elec_W']/1000}")
     print(f"Operating RPM: {results['rpm_lift_motor']}")

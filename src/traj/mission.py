@@ -6,6 +6,8 @@ from duration import Duration
 import sys
 import os
 import pdb
+from plotting import plot_mission
+
 #sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
 class Mission:
@@ -14,7 +16,7 @@ class Mission:
         self.cruise_analyzer = CruisePerformance({'aero_filenames': glob.glob("data/aero/*.txt")})
         self.duration = Duration({})
 
-    def analyze(self, vehicle, hover_phase, cruise_phase):
+    def analyze(self, vehicle, hover_phase, accel_phase, cruise_phase):
         """
         Analyze a complete mission with hover and cruise segments
         """
@@ -23,18 +25,31 @@ class Mission:
         
         # Then analyze hover performance
         hover_phase = self.hover_analyzer.analyze(vehicle, hover_phase)
+
+        # Update accel initial conditions based on hover results
+        accel_phase['t0_s'] = hover_phase['t1_s']
+        accel_phase['x0_m'] = hover_phase['x1_m']
+        accel_phase['z0_m'] = hover_phase['z1_m']
+        accel_phase['u0_m_s'] = hover_phase['u1_m_s']
         
-        # Update cruise initial conditions based on hover results
-        cruise_phase['t0_s'] = hover_phase['t1_s']
-        cruise_phase['x0_m'] = hover_phase['x1_m']
-        cruise_phase['z0_m'] = hover_phase['z1_m']
+        # compute accel duration
+        accel_phase = self.duration.solve_duration(accel_phase)
+
+        # analyze accel performance
+        accel_phase = self.cruise_analyzer.analyze(vehicle, accel_phase)
+
+        # Update cruise initial conditions based on accel results
+        cruise_phase['t0_s'] = accel_phase['t1_s']
+        cruise_phase['x0_m'] = accel_phase['x1_m']
+        cruise_phase['z0_m'] = accel_phase['z1_m']
+        cruise_phase['u0_m_s'] = accel_phase['u1_m_s']
         
         # Compute duration and kinematics for cruise
         cruise_phase = self.duration.solve_duration(cruise_phase)        
         # Then analyze cruise performance
         cruise_phase = self.cruise_analyzer.analyze(vehicle, cruise_phase)
         
-        return hover_phase, cruise_phase
+        return hover_phase, accel_phase, cruise_phase
 
 if __name__ == "__main__":
     # Define vehicle dictionary
@@ -44,50 +59,75 @@ if __name__ == "__main__":
         'lift_prplsr_diam_m': 3.09,
         'num_fwd_prplsrs': 2,
         'num_lift_prplsrs': 8,
-        'fwd_prplsr_rpm_min': 2200,
-        'fwd_prplsr_rpm_max': 3000,
-        'lift_prplsr_rpm_min': 2200,
-        'lift_prplsr_rpm_max': 3000,
+        'fwd_prplsr_rpm_min': 500,
+        'fwd_prplsr_rpm_max': 4000,
+        'lift_prplsr_rpm_min': 500,
+        'lift_prplsr_rpm_max': 4000,
         'wingarea_m2': 23,
         'lift_prplsr_beta_min': -7,
         'lift_prplsr_beta_max': 21
     }
 
     # Define hover phase dictionary
-    len_hover = 10
+    len_hover = 100
     hover_phase = {
         'N': len_hover,
         'density_kgm3': 1.05 * np.ones(len_hover),
         'udot_m_s2': np.zeros(len_hover),
-        'zdot_m_s': np.zeros(len_hover),
-        'zddot_m_s2': 0.3,
+        #'zdot_m_s': np.zeros(len_hover),
+        'zddot_m_s2': 0.025 * np.ones(len_hover),
         'u0_m_s': 1e-3,
+        'zdot0_m_s': 1e-3,
         't0_s': 0,
         'x0_m': 0,
         'z0_m': 0,
         'dur_s': 30,  # 30 seconds hover
         'gamma_rad': np.pi/2 * np.ones(len_hover),  # Point straight up
-        'mode': 'time',
-        'dur_s': 60
+        'end_cond': 'alt',
+        'ver_thrust': True,
+        'name': 'Liftoff',
+        'z1_tgt_m': 100 / 3.048
+    }
+
+    len_accel = 100
+    accel_phase = {
+        'N': len_accel,
+        'density_kgm3': 1.05 * np.ones(len_accel),
+        'udot_m_s2': 0.5 * np.ones(len_accel),
+        'zdot_m_s': 0 * np.ones(len_accel),
+        'zddot_m_s2': 0 * np.ones(len_accel),
+        'gamma_rad': 0 * np.ones(len_accel),
+        'end_cond': 'accel',
+        'u1_tgt_m_s': 65,
+        'zdot0_m_s': 1e-3,
+        't0_s': 0,
+        'x0_m': 0,
+        'z0_m': 0,
+        'ver_thrust': True,
+        'power_lift_motor_W': np.linspace(250,10,len_accel) * 1000,
+        'name': 'Transition'
+
     }
 
     # Define cruise phase dictionary
-    len_cruise = 10
+    len_cruise = 100
     cruise_phase = {
         'N': len_cruise,
         'density_kgm3': 1.05 * np.ones(len_cruise),
-        'dist_tgt_m': 200*1000,  # Target distance to travel
-        'u0_m_s': 65,
+        'dist_tgt_m': 10*1000,  # Target distance to travel
         'udot_m_s2': 0 * np.ones(len_cruise),  # Acceleration
         'gamma_rad': 0 * np.ones(len_cruise),  # Level flight
-        'mode': 'distance',
-        'aero_filenames': glob.glob("data/aero/*.txt")
+        'end_cond': 'distance',
+        'ver_thrust': False,
+        'aero_filenames': glob.glob("data/aero/*.txt"),
+        'name': 'Cruise'
     }
 
     # Create and run mission
     mission = Mission()
-    hover_phase, cruise_phase = mission.analyze(vehicle, hover_phase, cruise_phase)
+    hover_phase, accel_phase, cruise_phase = mission.analyze(vehicle, hover_phase, accel_phase, cruise_phase)
 
+    """
     # Print results
     print("\nHover Phase Results:")
     print(f"Duration (s): {hover_phase['dur_s']}")
@@ -102,8 +142,12 @@ if __name__ == "__main__":
     print(f"Thrust per motor (N): {cruise_phase['thrust_unit_N'][0]}")
     print(f"Power per motor (kW): {cruise_phase['power_fwd_motor_W'][0]/1000}")
     print(f"Total Electric Power (kW): {cruise_phase['power_elec_W'][0]/1000}")
+    """
 
     # Plot trajectories
-    mission.duration.plot_trajectory(hover_phase)
-    mission.duration.plot_trajectory(cruise_phase)
+    #pdb.set_trace()
+    phases = [hover_phase, accel_phase, cruise_phase]
+    pdb.set_trace()
+    plot_mission(phases)
+
 

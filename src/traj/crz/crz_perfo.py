@@ -1,13 +1,18 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import numpy as np
 
 from tools.emotor_import_rbf import EmpiricalMotor
 from tools.dfan_import import EmpiricalDfan
 from tools.flow5_import import EmpiricalAero
+from tools.lift_prop_import import EmpiricalPropeller
 import matplotlib.pyplot as plt
+from traj.duration import Duration
+
+from traj.plotting import plot_mission
 
 import glob
 import pdb
@@ -25,9 +30,31 @@ class CruisePerformance:
         fwd_prplsr_diam_m = vehicle['fwd_prplsr_diam_m']
         u_m_s = phase['u_m_s']
         num_fwd_prplsrs = vehicle['num_fwd_prplsrs']
+        num_lift_prplsrs = vehicle['num_lift_prplsrs']
+
+
+        if phase['ver_thrust']:
+            # Solve for lift propellers
+            prop = EmpiricalPropeller(vehicle)
+            phase['ver_thrust_unit_N'], lift_rpm, lift_beta_deg = prop.calculate_thrust(phase, vehicle)
+
+
+            # Solve for lift motors
+            lift_motor = EmpiricalMotor()
+            interp_func = lift_motor.create_efficiency_interpolator(kernel='thin_plate_spline')
+
+            torque_lift_motor_Nm = phase['power_lift_motor_W'] / (lift_rpm * 2 * np.pi / 60)
+            rpm_torque_points = np.column_stack((lift_rpm, torque_lift_motor_Nm))
+            eta_lift_motor = interp_func(rpm_torque_points)
+        else:
+            phase['ver_thrust_unit_N'] = 0
+            lift_rpm = np.zeros(phase['N'])
+            lift_beta_deg = np.zeros(phase['N'])
+            eta_lift_motor = np.zeros(phase['N'])
+        # end
 
         # Calculate CL required
-        CL = (mtom_kg * 9.806) / (0.5 * density_kg_m3 * u_m_s**2 * vehicle['wingarea_m2'])
+        CL = (mtom_kg * 9.806 - phase['ver_thrust_unit_N'] * num_lift_prplsrs) / (0.5 * density_kg_m3 * u_m_s**2 * vehicle['wingarea_m2'])
 
         # Create interpolation functions
         aero = EmpiricalAero(self.aero_filenames)
@@ -43,42 +70,47 @@ class CruisePerformance:
 
         # Vectorized force calculations
         drag_N = 0.5 * density_kg_m3 * u_m_s**2 * vehicle['wingarea_m2'] * CD
-        thrust_N = drag_N + vehicle['mtom_kg'] * phase['udot_m_s2']
-        unit_thrust_N = thrust_N / num_fwd_prplsrs
+        hor_thrust_total_N = drag_N + vehicle['mtom_kg'] * phase['udot_m_s2']
+        hor_unit_thrust_N = hor_thrust_total_N / num_fwd_prplsrs
 
 
-        phase['thrust_N'] = thrust_N
+        phase['hor_thrust_total_N'] = hor_thrust_total_N
         phase['drag_N'] = drag_N
-        phase['lift_N'] = vehicle['mtom_kg'] * 9.806 * np.ones(phase['N'])
+        phase['lift_N'] = (mtom_kg * 9.806 - phase['ver_thrust_unit_N'] * num_lift_prplsrs) * np.ones(phase['N'])
         phase['CL'] = CL
         phase['CD'] = CD
         phase['alpha'] = alpha
-        phase['thrust_unit_N'] = unit_thrust_N
+        phase['hor_thrust_unit_N'] = hor_unit_thrust_N
 
         dfan = EmpiricalDfan(vehicle)
 
         # Get propeller and motor performance (assuming dfan.calculate_power is vectorized)
-        power_fwd_motor_W, rpm = dfan.calculate_power(vehicle, phase)
-
+        power_fwd_motor_W, fwd_rpm = dfan.calculate_power(vehicle, phase)
 
 
         # Calculate motor efficiency
-        motor = EmpiricalMotor()
-        interp_func = motor.create_efficiency_interpolator(kernel='thin_plate_spline')
+        fwd_motor = EmpiricalMotor()
+        interp_func = fwd_motor.create_efficiency_interpolator(kernel='thin_plate_spline')
 
-        torque_fwd_motor_Nm = power_fwd_motor_W / (rpm * 2 * np.pi / 60)
-        rpm_torque_points = np.column_stack((rpm, torque_fwd_motor_Nm))
+        torque_fwd_motor_Nm = power_fwd_motor_W / (fwd_rpm * 2 * np.pi / 60)
+        rpm_torque_points = np.column_stack((fwd_rpm, torque_fwd_motor_Nm))
         eta_fwd_motor = interp_func(rpm_torque_points)
         
-        p_elec_motor_W = power_fwd_motor_W / eta_fwd_motor * vehicle['num_fwd_prplsrs']
+        if phase['ver_thrust']: 
+            p_elec_motor_W = power_fwd_motor_W / eta_fwd_motor * vehicle['num_fwd_prplsrs'] +\
+                phase['power_lift_motor_W'] / eta_lift_motor * vehicle['num_lift_prplsrs']
+        else:
+            p_elec_motor_W = power_fwd_motor_W / eta_fwd_motor * vehicle['num_fwd_prplsrs']
+        # end
 
         # pack phase
         phase['power_fwd_motor_W'] = power_fwd_motor_W
         phase['power_elec_W'] = p_elec_motor_W
-        phase['operating_rpm'] = rpm
         phase['eta_fwd_motor'] = eta_fwd_motor
+        phase['eta_lift_motor'] = eta_lift_motor
         phase['torque_fwd_motor_Nm'] = torque_fwd_motor_Nm  
-        phase['rpm_fwd_motor'] = rpm
+        phase['rpm_fwd_motor'] = fwd_rpm
+        phase['rpm_lift_motor'] = lift_rpm
 
         return phase
     
@@ -174,27 +206,45 @@ if __name__ == "__main__":
     vehicle = {}
     vehicle['mtom_kg'] = 5500  # Example MTOM
     vehicle['fwd_prplsr_diam_m'] = 1.58
+    vehicle['lift_prplsr_diam_m'] = 2.7
     vehicle['num_fwd_prplsrs'] = 2
     vehicle['num_lift_prplsrs'] = 8
     vehicle['fwd_prplsr_rpm_min'] = 2200
-    vehicle['fwd_prplsr_rpm_max'] = 3000
+    vehicle['fwd_prplsr_rpm_max'] = 3300
+    vehicle['lift_prplsr_rpm_min'] = 2200
+    vehicle['lift_prplsr_rpm_max'] = 3300
+    vehicle['lift_prplsr_beta_min'] = -7
+    vehicle['lift_prplsr_beta_max'] = 21
     vehicle['wingarea_m2'] = 23
     
 
     phase = {}
     phase['N'] = 10
     phase['density_kgm3'] = 1.05 * np.ones(phase['N'])
-    phase['u_m_s'] = 70 * np.ones(phase['N']) # airspeed in the body axis x-direction
     phase['aero_filenames'] = glob.glob("data/aero/*.txt")
-    phase['dur_s'] = 2 *60 * 60
     phase['udot_m_s2'] = 0.05 * np.ones(phase['N'])
-    phase['dt_s'] = phase['dur_s'] / phase['N']
-    phase['time_s'] = np.arange(0, phase['dur_s'], phase['dt_s'])
+    phase['power_lift_motor_W'] = np.linspace(250,50, phase['N'])* 1000
+    phase['name'] = 'crz'
+    phase['gamma_rad'] = 0 * np.ones(phase['N'])
+    phase['end_cond'] = 'distance'
+    phase['dist_tgt_m'] = 10 * 1000
+    phase['t0_s'] = 0
+    phase['x0_m'] = 0
+    phase['z0_m'] = 0
+    phase['u0_m_s'] = 70
+    phase['ver_thrust'] = True
+
+    dur = Duration(phase)
+    phase = dur.solve_duration(phase)
+
+    crz = CruisePerformance(phase)
+    phase = crz.analyze(vehicle, phase)
+
+    plot_mission(phase)
+
 
     
-    crz = CruisePerformance(phase)
-    
-    phase = crz.analyze(vehicle, phase )
+    """
     
     print("\nCruise Performance Results:")
     print(f"Thrust per motor: {phase['thrust_N']} N")
@@ -202,5 +252,6 @@ if __name__ == "__main__":
     print(f"Power elec per motor: {phase['power_elec_W']/1000} kW")
     print(f"Operating RPM: {phase['operating_rpm']} RPM")
     print(f"Motor efficiency: {phase['eta_fwd_motor']}")
+    """
 
-    crz.plot_performance(phase)
+    #crz.plot_performance(phase)
