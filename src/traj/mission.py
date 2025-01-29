@@ -75,13 +75,13 @@ if __name__ == "__main__":
         'density_kgm3': 1.05 * np.ones(len_hover),
         'udot_m_s2': np.zeros(len_hover),
         #'zdot_m_s': np.zeros(len_hover),
-        'zddot_m_s2': 0.025 * np.ones(len_hover),
+        'zddot_m_s2': 0.01 * np.ones(len_hover),
         'u0_m_s': 1e-3,
         'zdot0_m_s': 1e-3,
         't0_s': 0,
         'x0_m': 0,
         'z0_m': 0,
-        'dur_s': 30,  # 30 seconds hover
+        #'dur_s': 30,  # 30 seconds hover
         'gamma_rad': np.pi/2 * np.ones(len_hover),  # Point straight up
         'end_cond': 'alt',
         'ver_thrust': True,

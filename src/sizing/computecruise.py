@@ -9,12 +9,15 @@ class Cruise(om.ExplicitComponent):
         # Inputs
         self.add_input('w_mto',val=1.0, units='N', desc='Maximum takeoff weight')
         self.add_input('vel',val=1.0, units='m/s', desc='True airspeed')
-        self.add_input('s_ref',val=1.0, units='m**2', desc='Reference wing area')
+        self.add_input('s_m_ref',val=1.0, units='m**2', desc='Manta reference wing area')
+        self.add_input('s_r_ref',val=1.0, units='m**2', desc='Ray reference wing area')
+
         self.add_input('cd0',val=1.0, desc='Zero-lift drag coefficient')
         self.add_input('ar_w',val=1.0, desc='Aspect ratio')
         self.add_input('e', val=1.0, desc='Oswald efficiency factor')
         self.add_input('gamma', val=0.0, units='rad', desc='Flight path angle (0 for cruise)')
         self.add_input('rho', val=1.0, units='kg/m**3', desc='Air density')
+        self.add_input('udot', val=0.0, units='m/s**2', desc='Acceleration in the x-direction of the body axis')
 
         # Outputs
         self.add_output('thrust_total', val=1.0, units='N', desc='Required thrust')
@@ -29,12 +32,14 @@ class Cruise(om.ExplicitComponent):
         # Unpack inputs
         w_mto = inputs['w_mto']
         vel = inputs['vel']
-        s_ref = inputs['s_ref']
+        s_m_ref = inputs['s_m_ref']
+        s_r_ref = inputs['s_r_ref']
         cd0 = inputs['cd0']
         ar = inputs['ar_w']
         e = inputs['e']
         gamma = inputs['gamma']
         rho = inputs['rho']
+        udot = inputs['udot']
 
         # Constants
         g = 9.806 # m/s**2
@@ -42,15 +47,15 @@ class Cruise(om.ExplicitComponent):
         # Compute mass at takeoff. Assume constant for cruise.
         m_mto = w_mto / g 
         
-        # Required lift coefficient
-        CL = (w_mto * np.cos(gamma)) / (0.5 * rho * vel**2 * s_ref)
+        # Required lift coefficient on both wings?
+        CL = (w_mto * np.cos(gamma)) / (0.5 * rho * vel**2 * (s_m_ref + s_r_ref))
         
         # Drag coefficient (parabolic polar)
         CD = cd0 + CL**2 / (np.pi * ar * e)
 
         # Required thrust
         drag = 0.5 * rho * vel**2 * s_ref * CD  # Drag
-        thrust = drag + w_mto * np.sin(gamma)  # Thrust required
+        thrust = drag + w_mto * np.sin(gamma) + m_mto * udot # Thrust required 
 
         #pdb.set_trace()
         

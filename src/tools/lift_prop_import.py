@@ -125,11 +125,65 @@ class EmpiricalPropeller:
         thrust_lbf = CT * density_slugft3 * vtip_ft_s**2 * radius_ft**2 * np.pi
         thrust_N = thrust_lbf * 4.44822
 
-        pdb.set_trace()
+        #pdb.set_trace()
         
         return thrust_N, rpm, coll
 
+def test_prop_model():
+    # Create test vehicle dictionary
+    vehicle = {
+        'lift_prplsr_rpm_min': 2200,
+        'lift_prplsr_rpm_max': 2700,
+        'lift_prplsr_beta_min': -7,
+        'lift_prplsr_beta_max': 21,
+        'lift_prplsr_diam_m': 2.7
+    }
+
+    # Load experimental data
+    prop = EmpiricalPropeller(vehicle)
+    exp_data = pd.read_csv('data/prop/0_15-Scale_JVX_Three-Bladed_Proprotor.csv')
+    
+    # Get ranges from experimental data
+    rpm_min = exp_data['Vtip'].min() / ((prop.ref_diam_ft/2) * 2* np.pi / 60)
+    rpm_max = exp_data['Vtip'].max() / ((prop.ref_diam_ft/2) * 2* np.pi / 60)
+    coll_min = exp_data['Coll'].min()
+    coll_max = exp_data['Coll'].max()
+    
+    # Create sweep points within experimental ranges
+    rpm_sweep = np.linspace(rpm_min, rpm_max, 20)
+    coll_sweep = np.linspace(coll_min, coll_max, 20)
+    
+    # Create mesh grid for surface plot
+    RPM, COLL = np.meshgrid(rpm_sweep, coll_sweep)
+    
+    # Get CT and CP from model
+    CT = prop.CT_interp(RPM.flatten(), COLL.flatten()).reshape(RPM.shape)
+    CP = prop.CP_interp(RPM.flatten(), COLL.flatten()).reshape(RPM.shape)
+    
+    # Plot CT vs CP
+    plt.figure(figsize=(10, 6))
+    
+    # Plot experimental data
+    plt.scatter(exp_data['CT'], exp_data['CP'], 
+               label='Experimental Data', color='blue', alpha=0.5)
+    
+    # Plot model predictions
+    plt.scatter(CT.flatten(), CP.flatten(), 
+               label='Model Predictions', color='red', alpha=0.5)
+    
+    plt.ylabel('Power Coefficient (CP)')
+    plt.xlabel('Thrust Coefficient (CT)')
+    plt.title('Propeller Performance: Model vs Experimental Data')
+    plt.grid(True)
+    plt.legend()
+    
+    plt.show()
+
 if __name__ == "__main__":
+    test_prop_model()
+
+    pdb.set_trace()
+
 
     vehicle = {}
     vehicle['lift_prplsr_rpm_min'] = 2200
