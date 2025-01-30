@@ -24,9 +24,8 @@ class AngleOfAttack(om.ImplicitComponent):
     
     def setup(self):
         # Inputs
-        self.add_input('weight', val=0.0, units='N', desc='Aircraft weight')
-        self.add_input('load_factor', val=1.0, desc='Load factor')
-        self.add_input('L', val=0.0, units='N', desc='Current lift force')
+        self.add_input('lift_req', val=1.0, desc='lift force required')
+        self.add_input('lift_calc', val=0.0, units='N', desc='lift force calculated')
         
         # Output state
         self.add_output('alpha', val=0.0, units='rad', 
@@ -35,23 +34,21 @@ class AngleOfAttack(om.ImplicitComponent):
                        upper=np.pi/6)   # +30 degrees
         
         # Declare partials
-        self.declare_partials('alpha', ['weight', 'load_factor', 'L', 'alpha'])
+        self.declare_partials('alpha', ['lift_req', 'lift_calc', 'alpha'])
         
     def apply_nonlinear(self, inputs, outputs, residuals):
         """Compute residual for angle of attack."""
-        weight = inputs['weight']
-        n = inputs['load_factor']
-        L = inputs['L']
+        lift_req = inputs['lift_req']
+        lift_calc = inputs['lift_calc']
         
         # Residual is difference between required and actual lift
-        residuals['alpha'] = L - weight * n
+        residuals['alpha'] = lift_req - lift_calc
         
     def linearize(self, inputs, outputs, partials):
         """Compute partial derivatives analytically."""
         # Partial derivatives of residual with respect to inputs
-        partials['alpha', 'weight'] = -inputs['load_factor']
-        partials['alpha', 'load_factor'] = -inputs['weight']
-        partials['alpha', 'L'] = 1.0
+        partials['alpha', 'lift_req'] = 1.0
+        partials['alpha', 'lift_calc'] = -1.0
         
         # Partial derivative with respect to state variable (alpha)
         # This will be computed by the total derivative calculation

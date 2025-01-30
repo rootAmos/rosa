@@ -143,7 +143,6 @@ class CruisePropeller(om.ExplicitComponent):
 
         thrust_unit = thrust_total / n_motors 
 
-
         # Compute induced airspeed [1] Eq 15-76
         v_ind =  0.5 * ( - vel + ( vel**2 + 2*thrust_unit / (0.5 * rho * diskarea) ) **(0.5) )
 
@@ -156,7 +155,6 @@ class CruisePropeller(om.ExplicitComponent):
         # Compute the power required [1] Eq 15-75
         p_prplsv_unit = thrust_unit * vel  + thrust_unit ** 1.5/ np.sqrt(2 * rho * diskarea)
    
-
         # Compute the power required [1] Eq 15-78
         p_shaft_unit = p_prplsv_unit / eta_prop / eta_prplsv
 

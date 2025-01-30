@@ -1,7 +1,7 @@
 import openmdao.api as om
 import numpy as np
 
-class ComputeWingWettedArea(om.ExplicitComponent):
+class ComputeWingWettedAreaLiftingSurface(om.ExplicitComponent):
     """
     Calculates the wetted area of a wing.
     

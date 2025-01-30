@@ -4,16 +4,15 @@ import numpy as np
 import openmdao.api as om
 from typing import Any
 
-from formatmassresults import FormatMassResults
+from weights.formatmassresults import FormatMassResults
 
-from computehover import HoverEnergyAnalysis
-from cruisemaxpower import CruiseMaxpower
-from cruisemaxefficiency import CruiseMaxEfficiency
-from computeweights import ComputeWeights
-from computeamos import ComputeAtmos
+from hover.computehover import HoverEnergyAnalysis
+from cruise.cruisemaxpower import CruiseMaxpower
+from cruise.cruisemaxefficiency import CruiseMaxEfficiency
+from weights.computeweights import ComputeWeights
+from atmos.computeamos import ComputeAtmos
 from computeturbocruiserange import ComputeTurboCruiseRange
 from plotoptimization import plot_optimization_history
-
 
 
 class MTOMMargin(om.ExplicitComponent):
