@@ -1,7 +1,7 @@
 import openmdao.api as om
 import numpy as np
 
-class LiftCurveSlopeAirfoil(om.ExplicitComponent):
+class LiftCurveSlope3D(om.ExplicitComponent):
     """
     Calculates the lift curve slope for a lifting surface using compressibility corrections.
     
@@ -23,7 +23,7 @@ class LiftCurveSlopeAirfoil(om.ExplicitComponent):
     def setup(self):
         # Inputs
         self.add_input('aspect_ratio', val=0.0, desc='Aspect ratio')
-        self.add_input('mach', val=0.0, desc='machach number')
+        self.add_input('mach', val=0.0, desc='mach number')
         self.add_input('phi_50', val=0.0, units='rad', desc='50% chord sweep angle')
         self.add_input('cl_alpha_airfoil', val=2*np.pi, units='1/rad', desc='Airfoil lift curve slope')
         
@@ -80,13 +80,14 @@ if __name__ == "__main__":
     
     # Add IVC and LiftCurveSlope component to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('wing', LiftCurveSlopeAirfoil(), promotes=['*'])
+    prob.model.add_subsystem('wing', LiftCurveSlope3D(), promotes=['*'])
     
     # Setup and run problem
     prob.setup()
     prob.run_model()
     
     # Print results
+
     print('\nInputs:')
     print(f'  Aspect Ratio:          {prob.get_val("aspect_ratio")}')
     print(f'  Mach:                  {prob.get_val("mach")}')

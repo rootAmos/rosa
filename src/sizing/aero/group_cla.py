@@ -2,10 +2,11 @@ import openmdao.api as om
 import numpy as np
 
 
-class ComputeClAlphaCanard(om.ExplicitComponent):
+class CoupledCLAlphaCanard(om.ExplicitComponent):
     """
     Calculates the effective lift curve slope for the canard, accounting for area ratio and downwash.
     
+
     Inputs:
         CL_alpha_c : float
             Canard lift curve slope [1/rad]
@@ -75,15 +76,19 @@ class ComputeClAlphaCanard(om.ExplicitComponent):
             area_ratio = S_c / S_w
             partials['CL_alpha_c_eff', 'CL_alpha_c'] = (1 + d_eps_c_d_alpha) * area_ratio
             partials['CL_alpha_c_eff', 'd_eps_c_d_alpha'] = CL_alpha_c  * area_ratio
+            partials['CL_alpha_c_eff', 'S_c'] = CL_alpha_c * (1 + d_eps_c_d_alpha) / S_w
+            partials['CL_alpha_c_eff', 'S_w'] = -CL_alpha_c * (1 + d_eps_c_d_alpha) * S_c / S_w**2
         else:
+
 
             partials['CL_alpha_c_eff', 'CL_alpha_c'] = 1
 
 
-class ComputeClAlphaWing(om.ExplicitComponent):
+class CoupledCLAlphaWing(om.ExplicitComponent):
     """
     Calculates the effective lift curve slope for the wing, accounting for downwash.
     
+
     Inputs:
         CL_alpha_w : float
             Wing lift curve slope [1/rad]
@@ -134,12 +139,12 @@ class ComputeClAlphaWing(om.ExplicitComponent):
         partials['CL_alpha_w_eff', 'd_eps_w_d_alpha'] = -inputs['CL_alpha_w'] 
 
 
-class GroupClAlpha(om.Group):
+class GroupCLAlpha(om.Group):
     """
     Group that computes total lift curve slope by summing contributions
     from wing and canard.
     """
-    
+
     def initialize(self):
         self.options.declare('manta', default=0, desc='Flag for Manta configuration')
         self.options.declare('ray', default=0, desc='Flag for Ray configuration')
@@ -150,19 +155,22 @@ class GroupClAlpha(om.Group):
         # Wing lift curve slope
 
         self.add_subsystem('wing_cl_alpha', 
-                          ComputeClAlphaWing(ray=self.options['ray']),
+                          CoupledCLAlphaWing(ray=self.options['ray']),
                           promotes_inputs=['CL_alpha_w',
                                          'd_eps_w_d_alpha'],
                           promotes_outputs=['CL_alpha_w_eff'])
 
+
+
         
         # Canard lift curve slope
         self.add_subsystem('canard_cl_alpha',
-                          ComputeClAlphaCanard(manta=self.options['manta']),
+                          CoupledCLAlphaCanard(manta=self.options['manta']),
                           promotes_inputs=['CL_alpha_c',
                                          'd_eps_c_d_alpha',
                                          'S_c', 'S_w'],
                           promotes_outputs=['CL_alpha_c_eff'])
+
         
 
         # Sum the contributions
@@ -194,13 +202,15 @@ if __name__ == "__main__":
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('cl_alpha', GroupClAlpha(manta=1, ray=1), promotes=['*'])
+    prob.model.add_subsystem('cl_alpha_coupled', GroupCLAlpha(manta=1, ray=1), promotes=['*'])
     
     # Setup problem
     prob.setup()
     
     # Run baseline case
     prob.run_model()
+
+
     
     print('\nBaseline Configuration:')
     print('----------------------')
@@ -210,3 +220,5 @@ if __name__ == "__main__":
     print(f'  Effective CL_alpha:   {prob.get_val("CL_alpha_w_eff")[0]:8.3f} /rad')
     
     print('\nCanard:')
+
+    prob.check_partials(compact_print=True)
