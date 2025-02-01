@@ -1,162 +1,213 @@
 import openmdao.api as om
 import numpy as np
 
-class WingLift(om.ExplicitComponent):
+class LiftCoefficient(om.ExplicitComponent):
     """
-    Calculates lift coefficient for wing.
+    Computes lift coefficient using:
+    CL = CL0 + CL_alpha_eff * alpha
     
     Inputs:
-        CL_alpha_w : float
-            Wing lift curve slope [1/rad]
+        CL0 : float
+            Zero-angle lift coefficient [-]
+        CL_alpha_eff : float
+            Effective lift curve slope [1/rad]
         alpha : float
             Angle of attack [rad]
-        i_w : float
-            Wing incidence angle [rad]
-        alpha_0_w : float
-            Wing zero-lift angle of attack [rad]
-        epsilon : float
-            Downwash angle [rad]
     
     Outputs:
-        CL_w : float
-            Wing lift coefficient [-]
+        CL : float
+            Lift coefficient [-]
     """
     
     def setup(self):
-        # Wing inputs
-        self.add_input('CL_alpha_w', val=0.0, units='1/rad',
-                      desc='Wing lift curve slope')
+        self.add_input('CL0', val=0.0, desc='Zero-angle lift coefficient')
+        self.add_input('CL_alpha_eff', val=0.0, units='1/rad',
+                      desc='Effective lift curve slope')
         self.add_input('alpha', val=0.0, units='rad',
                       desc='Angle of attack')
-        self.add_input('i_w', val=0.0, units='rad',
-                      desc='Wing incidence angle')
-        self.add_input('alpha_0_w', val=0.0, units='rad',
-                      desc='Wing zero-lift angle')
-        self.add_input('epsilon', val=0.0, units='rad',
-                      desc='Downwash angle')
         
-        # Output
-        self.add_output('CL_w', val=0.0,
-                       desc='Wing lift coefficient')
+        self.add_output('CL', val=0.0, desc='Lift coefficient')
         
-        # Declare partials
-        self.declare_partials('CL_w', ['CL_alpha_w', 'alpha', 'i_w', 
-                                      'alpha_0_w', 'epsilon'])
+        self.declare_partials('CL', ['CL0', 'CL_alpha_eff', 'alpha'])
         
     def compute(self, inputs, outputs):
-        # Wing lift (with downwash)
-        outputs['CL_w'] = inputs['CL_alpha_w'] * (
-            inputs['alpha'] + inputs['i_w'] - inputs['epsilon'] - inputs['alpha_0_w']
-        )
+        outputs['CL'] = inputs['CL0'] + inputs['CL_alpha_eff'] * inputs['alpha']
         
     def compute_partials(self, inputs, partials):
-        # Wing derivatives
-        partials['CL_w', 'CL_alpha_w'] = (
-            inputs['alpha'] + inputs['i_w'] - inputs['epsilon'] - inputs['alpha_0_w']
-        )
-        partials['CL_w', 'alpha'] = inputs['CL_alpha_w']
-        partials['CL_w', 'i_w'] = inputs['CL_alpha_w']
-        partials['CL_w', 'alpha_0_w'] = -inputs['CL_alpha_w']
-        partials['CL_w', 'epsilon'] = -inputs['CL_alpha_w']
+        partials['CL', 'CL0'] = 1.0
+        partials['CL', 'CL_alpha_eff'] = inputs['alpha']
+        partials['CL', 'alpha'] = inputs['CL_alpha_eff']
 
 
-class CanardLift(om.ExplicitComponent):
+class GroupCL(om.Group):
     """
-    Calculates lift coefficient for canard.
-    
-    Inputs:
-        CL_alpha_c : float
-            Canard lift curve slope [1/rad]
-        alpha : float
-            Angle of attack [rad]
-        i_c : float
-            Canard incidence angle [rad]
-        alpha_0_c : float
-            Canard zero-lift angle of attack [rad]
-    
-    Outputs:
-        CL_c : float
-            Canard lift coefficient [-]
+    Group that computes total lift coefficient by combining wing and canard.
     """
     
     def setup(self):
-        # Canard inputs
-        self.add_input('CL_alpha_c', val=0.0, units='1/rad',
-                      desc='Canard lift curve slope')
-        self.add_input('alpha', val=0.0, units='rad',
-                      desc='Angle of attack')
-        self.add_input('i_c', val=0.0, units='rad',
-                      desc='Canard incidence angle')
-        self.add_input('alpha_0_c', val=0.0, units='rad',
-                      desc='Canard zero-lift angle')
+        # Wing lift coefficient
+        self.add_subsystem('wing_cl',
+                          LiftCoefficient(),
+                          promotes_inputs=[('CL0', 'CL0_w'),
+                                         ('CL_alpha_eff', 'CL_alpha_w_eff'),
+                                         'alpha'],
+                          promotes_outputs=[('CL', 'CL_w')])
         
-        # Output
-        self.add_output('CL_c', val=0.0,
-                       desc='Canard lift coefficient')
+        # Canard lift coefficient
+        self.add_subsystem('canard_cl',
+                          LiftCoefficient(),
+                          promotes_inputs=[('CL0', 'CL0_c'),
+                                         ('CL_alpha_eff', 'CL_alpha_c_eff'),
+                                         'alpha'],
+                          promotes_outputs=[('CL', 'CL_c')])
         
-        # Declare partials
-        self.declare_partials('CL_c', ['CL_alpha_c', 'alpha', 'i_c', 'alpha_0_c'])
+        # Sum the contributions
+        adder = om.AddSubtractComp()
+        adder.add_equation('CL_total',
+                          ['CL_w', 'CL_c'],
+                          desc='Total lift coefficient')
         
-    def compute(self, inputs, outputs):
-        # Canard lift (no downwash)
-        outputs['CL_c'] = inputs['CL_alpha_c'] * (
-            inputs['alpha'] + inputs['i_c'] - inputs['alpha_0_c']
-        )
-        
-    def compute_partials(self, inputs, partials):
-        # Canard derivatives
-        partials['CL_c', 'CL_alpha_c'] = (
-            inputs['alpha'] + inputs['i_c'] - inputs['alpha_0_c']
-        )
-        partials['CL_c', 'alpha'] = inputs['CL_alpha_c']
-        partials['CL_c', 'i_c'] = inputs['CL_alpha_c']
-        partials['CL_c', 'alpha_0_c'] = -inputs['CL_alpha_c']
+        self.add_subsystem('sum_cl', adder, promotes=['*'])
 
 
 if __name__ == "__main__":
     # Create problem instance
     prob = om.Problem()
     
-    # Create IndepVarComp for inputs
+    # Create IndepVarComp
     ivc = om.IndepVarComp()
     
-    # Wing inputs
-    ivc.add_output('CL_alpha_w', val=6.0, units='1/rad')
-    ivc.add_output('i_w', val=2.0, units='deg')
-    ivc.add_output('alpha_0_w', val=-2.0, units='deg')
-    ivc.add_output('epsilon', val=2.0, units='deg')
+    # Wing parameters
+    ivc.add_output('CL0_w', val=0.2, desc='Wing zero-angle lift coefficient')
+    ivc.add_output('CL_alpha_w_eff', val=5.5, units='1/rad',
+                   desc='Wing effective lift curve slope')
     
-    # Canard inputs
-    ivc.add_output('CL_alpha_c', val=5.0, units='1/rad')
-    ivc.add_output('i_c', val=0.0, units='deg')
-    ivc.add_output('alpha_0_c', val=-1.0, units='deg')
+    # Canard parameters
+    ivc.add_output('CL0_c', val=0.1, desc='Canard zero-angle lift coefficient')
+    ivc.add_output('CL_alpha_c_eff', val=4.0, units='1/rad',
+                   desc='Canard effective lift curve slope')
     
-    # Common input
-    ivc.add_output('alpha', val=4.0, units='deg')
+    # Common parameters
+    ivc.add_output('alpha', val=2.0, units='deg', desc='Angle of attack')
     
-    # Add IVC and components to model
+    # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('wing', WingLift(), promotes=['*'])
-    prob.model.add_subsystem('canard', CanardLift(), promotes=['*'])
+    prob.model.add_subsystem('CL', GroupCL(), promotes=['*'])
     
-    # Setup and run problem
+    # Setup problem
     prob.setup()
+    
+    # Run baseline case
     prob.run_model()
     
-    # Print results
-    print('\nInputs:')
-    print(f'  Alpha:      {prob["alpha"]} deg')
-    print(f'  Epsilon:    {prob["epsilon"]} deg')
+    print('\nBaseline Configuration:')
+    print('----------------------')
+    print(f'  Alpha:               {np.degrees(prob.get_val("alpha")[0]):8.3f} deg')
     print('\nWing:')
-    print(f'  CL_alpha_w: {prob["CL_alpha_w"]} 1/rad')
-    print(f'  i_w:        {prob["i_w"]} deg')
-    print(f'  alpha_0_w:  {prob["alpha_0_w"]} deg')
-    print(f'  CL_w:       {prob["CL_w"]}')
+    print(f'  CL0:                 {prob.get_val("CL0_w")[0]:8.3f}')
+    print(f'  CL_alpha:            {prob.get_val("CL_alpha_w_eff")[0]:8.3f} /rad')
+    print(f'  CL:                  {prob.get_val("CL_w")[0]:8.3f}')
+    
     print('\nCanard:')
-    print(f'  CL_alpha_c: {prob["CL_alpha_c"]} 1/rad')
-    print(f'  i_c:        {prob["i_c"]} deg')
-    print(f'  alpha_0_c:  {prob["alpha_0_c"]} deg')
-    print(f'  CL_c:       {prob["CL_c"]}')
+    print(f'  CL0:                 {prob.get_val("CL0_c")[0]:8.3f}')
+    print(f'  CL_alpha:            {prob.get_val("CL_alpha_c_eff")[0]:8.3f} /rad')
+    print(f'  CL:                  {prob.get_val("CL_c")[0]:8.3f}')
+    
+    print('\nTotal:')
+    print(f'  CL:                  {prob.get_val("CL_total")[0]:8.3f}')
+    
+    # Parameter sweeps
+    import matplotlib.pyplot as plt
+    
+    # Create figure with 2x2 subplots
+    plt.figure(figsize=(12, 10))
+    
+    # Alpha sweep
+    alpha_range = np.linspace(-5.0, 10.0, 50)  # degrees
+    CL_w = []
+    CL_c = []
+    CL_total = []
+    for alpha in alpha_range:
+        prob.set_val('alpha', np.radians(alpha))
+        prob.run_model()
+        CL_w.append(prob.get_val('CL_w')[0])
+        CL_c.append(prob.get_val('CL_c')[0])
+        CL_total.append(prob.get_val('CL_total')[0])
+    
+    plt.subplot(221)
+    plt.plot(alpha_range, CL_w, label='Wing')
+    plt.plot(alpha_range, CL_c, label='Canard')
+    plt.plot(alpha_range, CL_total, '--', label='Total')
+    plt.xlabel('Angle of Attack [deg]')
+    plt.ylabel('CL')
+    plt.grid(True)
+    plt.legend()
+    plt.title('Lift Curves')
+    
+    # Wing CL0 sweep
+    prob.set_val('alpha', np.radians(2.0))  # Reset to baseline
+    CL0_range = np.linspace(-0.2, 0.4, 50)
+    CL_w = []
+    CL_total = []
+    for CL0 in CL0_range:
+        prob.set_val('CL0_w', CL0)
+        prob.run_model()
+        CL_w.append(prob.get_val('CL_w')[0])
+        CL_total.append(prob.get_val('CL_total')[0])
+    
+    plt.subplot(222)
+    plt.plot(CL0_range, CL_w, label='Wing')
+    plt.plot(CL0_range, CL_total, '--', label='Total')
+    plt.xlabel('Wing CL0')
+    plt.ylabel('CL')
+    plt.grid(True)
+    plt.legend()
+    plt.title('Effect of Wing CL0')
+    
+    # Wing CL_alpha sweep
+    prob.set_val('CL0_w', 0.2)  # Reset to baseline
+    CL_alpha_range = np.linspace(4.0, 7.0, 50)
+    CL_w = []
+    CL_total = []
+    for CL_alpha in CL_alpha_range:
+        prob.set_val('CL_alpha_w_eff', CL_alpha)
+        prob.run_model()
+        CL_w.append(prob.get_val('CL_w')[0])
+        CL_total.append(prob.get_val('CL_total')[0])
+    
+    plt.subplot(223)
+    plt.plot(CL_alpha_range, CL_w, label='Wing')
+    plt.plot(CL_alpha_range, CL_total, '--', label='Total')
+    plt.xlabel('Wing CL_alpha [1/rad]')
+    plt.ylabel('CL')
+    plt.grid(True)
+    plt.legend()
+    plt.title('Effect of Wing CL_alpha')
+    
+    # Combined alpha and CL_alpha effect
+    alpha_mesh = np.linspace(-5.0, 10.0, 20)  # degrees
+    CL_alpha_mesh = np.linspace(4.0, 7.0, 20)
+    CL_total = np.zeros((len(alpha_mesh), len(CL_alpha_mesh)))
+    
+    for i, alpha in enumerate(alpha_mesh):
+        for j, CL_alpha in enumerate(CL_alpha_mesh):
+            prob.set_val('alpha', np.radians(alpha))
+            prob.set_val('CL_alpha_w_eff', CL_alpha)
+            prob.run_model()
+            CL_total[i,j] = prob.get_val('CL_total')[0]
+    
+    X, Y = np.meshgrid(CL_alpha_mesh, alpha_mesh)
+    plt.subplot(224)
+    plt.contour(X, Y, CL_total, levels=20)
+    plt.colorbar(label='Total CL')
+    plt.xlabel('Wing CL_alpha [1/rad]')
+    plt.ylabel('Angle of Attack [deg]')
+    plt.title('Combined Effects')
+    
+    plt.tight_layout()
     
     # Check partials
-    prob.check_partials(compact_print=True) 
+    print("\nChecking partials...")
+    prob.check_partials(compact_print=True)
+    
+    plt.show() 

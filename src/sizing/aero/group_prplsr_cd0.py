@@ -1,5 +1,5 @@
 import openmdao.api as om
-from .computecd0 import ZeroLiftDragComponent
+from .cd0_component import ZeroLiftDragComponent
 from .sum_prplsr_cd0 import TotalNacelleDrag, TotalPodDrag
 
 class NacelleDragGroup(om.Group):

@@ -32,13 +32,10 @@ class Cruise(om.ExplicitComponent):
         # Unpack inputs
         w_mto = inputs['w_mto']
         vel = inputs['vel']
-        s_m_ref = inputs['s_m_ref']
-        s_r_ref = inputs['s_r_ref']
-        cd0 = inputs['cd0']
-        ar = inputs['ar_w']
-        e = inputs['e']
+        lift = inputs['lift']
+        drag = inputs['drag']
         gamma = inputs['gamma']
-        rho = inputs['rho']
+
         udot = inputs['udot']
 
         # Constants
@@ -46,9 +43,11 @@ class Cruise(om.ExplicitComponent):
 
         # Compute mass at takeoff. Assume constant for cruise.
         m_mto = w_mto / g 
-        
+
         # Required lift coefficient on both wings?
-        CL = (w_mto * np.cos(gamma)) / (0.5 * rho * vel**2 * (s_m_ref + s_r_ref))
+        lift_req = (w_mto * np.cos(gamma))
+        
+        / (0.5 * rho * vel**2 * (s_m_ref + s_r_ref))
         
         # Drag coefficient (parabolic polar)
         CD = cd0 + CL**2 / (np.pi * ar * e)

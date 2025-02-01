@@ -1,12 +1,18 @@
 import openmdao.api as om
-from computecd0 import ZeroLiftDragComponent
+from src.sizing.aero.cd0_component import ZeroLiftDragComponent
 from src.sizing.aero.misc_cd0 import LeakageDrag, ExcrescenceDrag
 from .group_prplsr_cd0 import NacelleDragGroup, PodDragGroup
 
-class ZeroLiftDragGroup(om.Group):
+class GroupCD0(om.Group):
     """
     Group that combines zero-lift drag from multiple components and adds miscellaneous drag.
     """
+
+
+    def initialize(self):
+        self.options.declare('manta', default=0, desc='Flag for Manta configuration')
+        self.options.declare('ray', default=0, desc='Flag for Ray configuration')
+
     
     def setup(self):
 
@@ -116,13 +122,14 @@ if __name__ == "__main__":
     
     # Add IVC and group to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('cd0_group', ZeroLiftDragGroup(), promotes=['*'])
+    prob.model.add_subsystem('cd0_group', GroupCD0(), promotes=['*'])
     
     # Setup and run problem
     prob.setup()
     prob.run_model()
     
     # Print results
+
     print('\nComponent CD0s:')
     print(f'  Wing CD0 = {prob.get_val("cd0_group.cd0_wing.CD0"):.6f}')
     print(f'  Canard CD0 = {prob.get_val("cd0_group.cd0_canard.CD0"):.6f}')

@@ -1,7 +1,7 @@
 import openmdao.api as om
 import numpy as np
 
-class LiftCurveSlope(om.ExplicitComponent):
+class LiftCurveSlopeAirfoil(om.ExplicitComponent):
     """
     Calculates the lift curve slope for a lifting surface using compressibility corrections.
     
@@ -34,6 +34,7 @@ class LiftCurveSlope(om.ExplicitComponent):
         self.declare_partials('CL_alpha', ['aspect_ratio', 'mach', 'phi_50', 'cl_alpha_airfoil'])
         
     def compute(self, inputs, outputs):
+        
         aspect_ratio = inputs['aspect_ratio']
         mach = inputs['mach']
         phi_50 = inputs['phi_50']
@@ -61,7 +62,7 @@ class LiftCurveSlope(om.ExplicitComponent):
         partials['CL_alpha', 'aspect_ratio'] = 6.2832/(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6) + (39.4784*aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/(cl_alpha_airfoil**2*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)
 
         partials['CL_alpha', 'mach'] = -(39.4784*aspect_ratio**3*mach*np.tan(phi_50)**2)/(cl_alpha_airfoil**2*(mach**2 - 1)**2*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)    
-        # With respect to phi_50
+
         partials['CL_alpha', 'phi_50'] = (39.4784*aspect_ratio**3*np.tan(phi_50)*(np.tan(phi_50)**2 + 1))/(cl_alpha_airfoil**2*(mach**2 - 1)*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)
 
         partials['CL_alpha', 'cl_alpha_airfoil'] = -(39.4784*aspect_ratio**3*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/(cl_alpha_airfoil**3*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     
     # Add IVC and LiftCurveSlope component to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('wing', LiftCurveSlope(), promotes=['*'])
+    prob.model.add_subsystem('wing', LiftCurveSlopeAirfoil(), promotes=['*'])
     
     # Setup and run problem
     prob.setup()
