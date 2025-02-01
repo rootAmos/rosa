@@ -44,30 +44,48 @@ class GroupCL(om.Group):
     Group that computes total lift coefficient by combining wing and canard.
     """
     
+    def initialize(self):
+        self.options.declare('manta', default=0, desc='Flag for Manta configuration')
+        self.options.declare('ray', default=0, desc='Flag for Ray configuration')
+
     def setup(self):
-        # Wing lift coefficient
-        self.add_subsystem('wing_cl',
-                          LiftCoefficient(),
-                          promotes_inputs=[('CL0', 'CL0_w'),
-                                         ('CL_alpha_eff', 'CL_alpha_w_eff'),
-                                         'alpha'],
-                          promotes_outputs=[('CL', 'CL_w')])
+
+        scaling_factors = [self.options['manta'], self.options['ray']]
+
+        if self.options['manta'] == 1:
+            # Wing lift coefficient
+            self.add_subsystem('wing_cl',
+                            LiftCoefficient(),
+                            promotes_inputs=[
+                                            'alpha'],
+                            promotes_outputs=[])
+        # end
+            
+        if self.options['ray'] == 1:
+            # Canard lift coefficient
+            self.add_subsystem('canard_cl',
+                            LiftCoefficient(),
+                            promotes_inputs=[
+                                            'alpha'],
+                            promotes_outputs=[])
+        # end
         
-        # Canard lift coefficient
-        self.add_subsystem('canard_cl',
-                          LiftCoefficient(),
-                          promotes_inputs=[('CL0', 'CL0_c'),
-                                         ('CL_alpha_eff', 'CL_alpha_c_eff'),
-                                         'alpha'],
-                          promotes_outputs=[('CL', 'CL_c')])
+
+        self.connect('wing_cl.CL', 'CL_w')
+        self.connect('canard_cl.CL', 'CL_c')
         
-        # Sum the contributions
-        adder = om.AddSubtractComp()
-        adder.add_equation('CL_total',
-                          ['CL_w', 'CL_c'],
-                          desc='Total lift coefficient')
-        
-        self.add_subsystem('sum_cl', adder, promotes=['*'])
+
+        if self.options['manta'] == 1 and self.options['ray'] == 1:
+            # Sum the contributions
+            adder = om.AddSubtractComp()
+            adder.add_equation('CL_total',
+                            ['CL_w', 'CL_c'],
+                            desc='Total lift coefficient',
+                            scaling_factors=scaling_factors)
+            
+
+            self.add_subsystem('sum_cl', adder, promotes=['*'])
+
 
 
 if __name__ == "__main__":
@@ -92,14 +110,27 @@ if __name__ == "__main__":
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('CL', GroupCL(), promotes=['*'])
+    prob.model.add_subsystem('CL', GroupCL(manta=1, ray = 1), promotes=['*'])
     
+
+    prob.model.connect('CL0_w', 'wing_cl.CL0')
+    prob.model.connect('CL_alpha_w_eff', 'wing_cl.CL_alpha_eff')
+
+
+    prob.model.connect('CL0_c', 'canard_cl.CL0')
+    prob.model.connect('CL_alpha_c_eff', 'canard_cl.CL_alpha_eff')
+
     # Setup problem
     prob.setup()
+
+
+
+    om.n2(prob.model)
     
     # Run baseline case
     prob.run_model()
     
+
     print('\nBaseline Configuration:')
     print('----------------------')
     print(f'  Alpha:               {np.degrees(prob.get_val("alpha")[0]):8.3f} deg')

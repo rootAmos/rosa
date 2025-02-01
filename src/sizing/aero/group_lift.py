@@ -1,13 +1,16 @@
 import openmdao.api as om
 import numpy as np
 
-from .group_cl0 import GroupCL0
-from .group_cl import GroupCL
-from .group_cla import GroupClAlpha
-from .lift_req import LiftRequired
+from group_cl0 import GroupCL0
+from group_cl import GroupCL
+from group_cla import GroupCLAlpha
+from lift_req import LiftRequired
+from ang_attack import AngleOfAttack
+
 
 class GroupLift(om.Group):
     """
+
 
     Group that computes required lift and lift coefficients for wing and canard.
     Computation chain:
@@ -28,34 +31,80 @@ class GroupLift(om.Group):
                           LiftRequired(),
                           promotes_inputs=['mto', 'gamma'],
                           promotes_outputs=['lift'])
+    
+
+        if self.options['manta'] == 1 and self.options['ray'] == 0:
+
+            cl0_outputs =  ['CL0_w']
+            clalpha_outputs = ['CL_alpha_w_eff']
+            cl_outputs = ['CL_w']
+
+            self.connect('CL0_w', 'alpha.CL0')
+            self.connect('CL_alpha_w_eff', 'alpha.CL_alpha')
+
+            self.connect('CL0_w', 'cl.CL0_w')
+            self.connect('cl_alpha.CL_alpha_w_eff', 'cl.CL_alpha_eff')
+
+
+        elif self.options['ray'] == 1 and self.options['manta'] == 0:
+
+            cl0_outputs = ['CL0_c']
+            clalpha_outputs = ['CL_alpha_c_eff']
+            cl_outputs = ['CL_c']
+            cl_inputs = ['CL_c']
+
+            self.connect('CL_alpha_c_eff', ['alpha.CL_alpha','cl.CL_alpha_eff'])
+
+            self.connect('c_CL0.CL0', ['cl.CL0_c','alpha.CL0'])
+
+
+
+        elif self.options['manta'] == 1 and self.options['ray'] == 1:
+
+            cl0_outputs = ['CL0_total']
+            cl0_inputs = ['CL0_w', 'CL0_c']
+            clalpha_inputs = []
+            clalpha_outputs = ['CL_alpha_total']
+            cl_outputs = ['CL_total']
+            cl_inputs = ['CL_w', 'CL_c','alpha']
+
+            self.connect('cl0.c_CL0.CL0', 'cl.canard_cl.CL0')
+            self.connect('cl0.w_CL0.CL0', 'cl.wing_cl.CL0')
+
+            self.connect('cl_alpha.CL_alpha_w_eff', ['cl0.w_CL0.CL_alpha','cl.wing_cl.CL_alpha_eff'])
+            self.connect('cl_alpha.CL_alpha_c_eff', ['cl0.c_CL0.CL_alpha','cl.canard_cl.CL_alpha_eff'])
+
+            self.connect('CL0_total', 'alpha.CL0')
+            self.connect('CL_alpha_total', ['alpha.CL_alpha'])
+        # end
+
+
+        # Step 3: Lift curve slopes
+        self.add_subsystem('cl_alpha',
+                          GroupCLAlpha(manta=self.options['manta'],
+                                     ray=self.options['ray']),
+                          promotes_inputs=clalpha_inputs,
+                          promotes_outputs=clalpha_outputs)
+        
         
         # Step 2: Zero-angle lift coefficients
         self.add_subsystem('cl0',
                           GroupCL0(manta=self.options['manta'],
                                  ray=self.options['ray']),
-                          promotes_inputs=['M_wing', 'tc_wing', 'alpha_L0_w',
-                                         'M_canard', 'tc_canard', 'alpha_L0_c',
-                                         'd_eps_w_d_alpha', 'd_eps_c_d_alpha',
-                                         'S_c', 'S_w'],
-                          promotes_outputs=['cl0_w', 'cl0_c', 'cl0_total'])
+                          promotes_inputs=cl0_inputs,
+                          promotes_outputs=cl0_outputs)
         
-        # Step 3: Lift curve slopes
-        self.add_subsystem('cl_alpha',
-                          GroupClAlpha(manta=self.options['manta'],
-                                     ray=self.options['ray']),
-                          promotes_inputs=['CL_alpha_w', 'd_eps_w_d_alpha',
-                                         'CL_alpha_c', 'd_eps_c_d_alpha',
-                                         'S_c', 'S_w'],
-                          promotes_outputs=['CL_alpha_w_eff', 'CL_alpha_c_eff',
-                                         'CL_alpha_total'])
+        self.add_subsystem('alpha', AngleOfAttack(), promotes_inputs=['rho', 'u', 'lift'],
+                     promotes_outputs=['alpha'])
         
+
         # Step 4: Individual lift coefficients
         self.add_subsystem('cl',
-                          GroupCL(),
-                          promotes_inputs=['CL0_w', 'CL_alpha_w_eff',
-                                         'CL0_c', 'CL_alpha_c_eff',
-                                         'alpha'],
-                          promotes_outputs=['CL_w', 'CL_c', 'CL_total'])
+                          GroupCL(manta=self.options['manta'],
+                                 ray=self.options['ray']),
+                          promotes_inputs=cl_inputs,
+                          promotes_outputs=cl_outputs)
+        
 
 
 if __name__ == "__main__":
@@ -66,34 +115,87 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
     
     # Flight conditions
-    ivc.add_output('mto', val=10000.0, units='kg', desc='Maximum takeoff weight')
+    ivc.add_output('mto_m', val=10000.0, units='kg', desc='Maximum takeoff weight of Manta')
+    ivc.add_output('mto_r', val=5000.0, units='kg', desc='Maximum takeoff weight of Ray')
+    ivc.add_output('mto_mr', val=10000.0, units='kg', desc='Maximum takeoff weight of Manta Ray')
+
     ivc.add_output('gamma', val=0.0, units='deg', desc='Flight path angle')
-    ivc.add_output('alpha', val=2.0, units='deg', desc='Angle of attack')
-    
+    ivc.add_output('rho', val=0.38, units='kg/m**3', desc='Air density')
+    ivc.add_output('u', val=70.0, units='m/s', desc='Flight speed')
+
+
+
     # Wing parameters
-    ivc.add_output('M_wing', val=0.78, desc='Wing Mach number')
-    ivc.add_output('tc_wing', val=0.12, desc='Wing thickness ratio')
-    ivc.add_output('alpha_L0_w', val=-2.0, units='deg', desc='Wing zero-lift angle')
-    ivc.add_output('CL_alpha_w', val=5.5, units='1/rad', desc='Wing lift curve slope')
+    ivc.add_output('mach_w', val=0.78, desc='Wing Mach number')
+    ivc.add_output('phi_50_w', val=5.0, units='deg', desc='Wing 50% chord sweep angle')
+    ivc.add_output('cl_alpha_airfoil_w', val=2*np.pi, units='1/rad', desc='Wing airfoil lift curve slope')
+    ivc.add_output('alpha0_airfoil_w', val=-2.0, units='deg', desc='Wing airfoil zero-lift angle')
+    ivc.add_output('d_twist_w', val=0.0, units='rad', desc='twist angle')
+    ivc.add_output('aspect_ratio_w', val=10.0, desc='Wing aspect ratio')
     ivc.add_output('d_eps_w_d_alpha', val=0.25, desc='Wing downwash derivative')
-    
+
     # Canard parameters
-    ivc.add_output('M_canard', val=0.78, desc='Canard Mach number')
-    ivc.add_output('tc_canard', val=0.10, desc='Canard thickness ratio')
-    ivc.add_output('alpha_L0_c', val=-1.5, units='deg', desc='Canard zero-lift angle')
-    ivc.add_output('CL_alpha_c', val=4.0, units='1/rad', desc='Canard lift curve slope')
+    ivc.add_output('mach_c', val=0.78, desc='Canard Mach number')
+    ivc.add_output('phi_50_c', val=4.0, units='deg', desc='Canard 50% chord sweep angle')
+    ivc.add_output('cl_alpha_airfoil_c', val=2*np.pi, units='1/rad', desc='Canard airfoil lift curve slope')
+    ivc.add_output('alpha0_airfoil_c', val=-1.5, units='deg', desc='Canard airfoil zero-lift angle')
+    ivc.add_output('d_twist_c', val=0.0, units='rad', desc='twist angle')
+    ivc.add_output('aspect_ratio_c', val=10.0, desc='Canard aspect ratio')
     ivc.add_output('d_eps_c_d_alpha', val=0.1, desc='Canard downwash derivative')
+    
     ivc.add_output('S_c', val=20.0, units='m**2', desc='Canard reference area')
     ivc.add_output('S_w', val=120.0, units='m**2', desc='Wing reference area')
+
+    manta_opt = 1
+    ray_opt = 1
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('lift', GroupLift(manta=1), promotes=['*'])
-    
+    prob.model.add_subsystem('lift', GroupLift(manta=manta_opt, ray = ray_opt), promotes=['*'])
+
+
+
+    prob.model.connect('mach_w', 'cl_alpha.w_cl_alpha_3d.mach')
+    prob.model.connect('phi_50_w', 'cl_alpha.w_cl_alpha_3d.phi_50')
+    prob.model.connect('aspect_ratio_w', 'cl_alpha.w_cl_alpha_3d.aspect_ratio')
+
+    prob.model.connect('cl_alpha_airfoil_w', 'cl_alpha.w_cl_alpha_3d.cl_alpha_airfoil')
+
+    prob.model.connect('alpha0_airfoil_w', 'cl0.w_alpha0.alpha0_airfoil')
+    prob.model.connect('d_twist_w', 'cl0.w_alpha0.d_twist')
+
+    prob.model.connect('mach_c', 'cl_alpha.c_cl_alpha_3d.mach')
+    prob.model.connect('phi_50_c', 'cl_alpha.c_cl_alpha_3d.phi_50')
+
+    prob.model.connect('cl_alpha_airfoil_c', 'cl_alpha.c_cl_alpha_3d.cl_alpha_airfoil')
+    prob.model.connect('aspect_ratio_c', 'cl_alpha.c_cl_alpha_3d.aspect_ratio')
+    prob.model.connect('alpha0_airfoil_c', 'cl0.c_alpha0.alpha0_airfoil')
+
+    prob.model.connect('d_eps_w_d_alpha', 'cl_alpha.d_eps_w_d_alpha')
+    prob.model.connect('d_eps_c_d_alpha', 'cl_alpha.d_eps_c_d_alpha')
+    prob.model.connect('d_twist_c', 'cl0.c_alpha0.d_twist')
+
+
+
+    if manta_opt == 1 and ray_opt == 0:
+        prob.model.connect('mto_m', 'mto')
+        prob.model.connect('S_w', ['alpha.S_ref','cl_alpha.S_w'])
+    elif ray_opt == 1 and manta_opt == 0:
+        prob.model.connect('mto_r', 'mto')
+        prob.model.connect('S_c', ['alpha.S_ref','cl_alpha.S_c'])
+    elif manta_opt == 1 and ray_opt == 1:
+        prob.model.connect('S_w', ['alpha.S_ref','cl_alpha.S_w'])
+        prob.model.connect('S_c', ['cl_alpha.S_c'])
+        prob.model.connect('mto_mr', 'mto')
+    # end
+
+
+
     # Setup problem
     prob.setup()
 
-    om.n2(prob)
+
+    #om.n2(prob)
     
     # Run baseline case
     prob.run_model()
@@ -107,15 +209,19 @@ if __name__ == "__main__":
     print(f'  Angle of Attack:     {prob.get_val("alpha")[0]:8.3f} deg')
     
     print('\nWing:')
-    print(f'  CL0:                 {prob.get_val("cl0_w")[0]:8.3f}')
-    print(f'  CL_alpha:            {prob.get_val("CL_alpha_w_eff")[0]:8.3f} /rad')
-    print(f'  CL:                  {prob.get_val("CL_w")[0]:8.3f}')
+    print(f'  CL0:                 {prob.get_val("cl0.w_CL0.CL0")[0]:8.3f}')
+    print(f'  CL_alpha:            {prob.get_val("cl_alpha.CL_alpha_w_eff")[0]:8.3f} /rad')
+    print(f'  CL:                  {prob.get_val("cl.CL_w")[0]:8.3f}')
     
+
+
     print('\nCanard:')
-    print(f'  CL0:                 {prob.get_val("cl0_c")[0]:8.3f}')
-    print(f'  CL_alpha:            {prob.get_val("CL_alpha_c_eff")[0]:8.3f} /rad')
-    print(f'  CL:                  {prob.get_val("CL_c")[0]:8.3f}')
+    print(f'  CL0:                 {prob.get_val("cl0.c_CL0.CL0")[0]:8.3f}')
+    print(f'  CL_alpha:            {prob.get_val("cl_alpha.CL_alpha_c_eff")[0]:8.3f} /rad')
+    print(f'  CL:                  {prob.get_val("cl.CL_c")[0]:8.3f}')
     
+
+
     print('\nTotal:')
     print(f'  CL0:                 {prob.get_val("cl0_total")[0]:8.3f}')
     print(f'  CL_alpha:            {prob.get_val("CL_alpha_total")[0]:8.3f} /rad')
@@ -187,9 +293,8 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.legend()
     plt.title('Effect of Canard Size')
+
+    prob.check_partials(compact_print=True)
+    plt.show()
     
-    # Flight path angle sweep
-    prob.set_val('S_c', 20.0)  # Reset to baseline
-    gamma_range = np.linspace(-10, 10, 50)  # degrees
-    lift_req = []
-    for gamma in gamma_range:
+    

@@ -1,7 +1,7 @@
 import openmdao.api as om
 import numpy as np
 
-
+from cl_alpha_airfoil import LiftCurveSlope3D
 class CoupledCLAlphaCanard(om.ExplicitComponent):
     """
     Calculates the effective lift curve slope for the canard, accounting for area ratio and downwash.
@@ -154,33 +154,61 @@ class GroupCLAlpha(om.Group):
         scaling_factors = [self.options['manta'], self.options['ray']]
         # Wing lift curve slope
 
-        self.add_subsystem('wing_cl_alpha', 
-                          CoupledCLAlphaWing(ray=self.options['ray']),
-                          promotes_inputs=['CL_alpha_w',
-                                         'd_eps_w_d_alpha'],
-                          promotes_outputs=['CL_alpha_w_eff'])
 
+        if self.options['manta'] == 1:
 
-
-        
-        # Canard lift curve slope
-        self.add_subsystem('canard_cl_alpha',
-                          CoupledCLAlphaCanard(manta=self.options['manta']),
-                          promotes_inputs=['CL_alpha_c',
-                                         'd_eps_c_d_alpha',
-                                         'S_c', 'S_w'],
-                          promotes_outputs=['CL_alpha_c_eff'])
-
+            self.add_subsystem('w_cl_alpha_3d',
+                LiftCurveSlope3D(),
+                promotes_inputs=[],
+                promotes_outputs=[])
+                        
+            self.add_subsystem('wing_cl_alpha', 
+                            CoupledCLAlphaWing(ray=self.options['ray']),
+                            promotes_inputs=['CL_alpha_w',
+                                            'd_eps_w_d_alpha'],
+                            promotes_outputs=['CL_alpha_w_eff'])
         
 
-        # Sum the contributions
-        adder = om.AddSubtractComp()
-        adder.add_equation('CL_alpha_total',
-                          ['CL_alpha_w_eff', 'CL_alpha_c_eff'],
-                          desc='Total lift curve slope',
-                          scaling_factors=scaling_factors)
+            self.connect('w_cl_alpha_3d.CL_alpha', 'CL_alpha_w')
+        # end
 
-        self.add_subsystem('sum_cl_alpha', adder, promotes=['*'])
+
+
+
+        if self.options['ray'] == 1:
+
+            
+            self.add_subsystem('c_cl_alpha_3d',
+                                LiftCurveSlope3D(),
+                                promotes_inputs=[],
+                                promotes_outputs=[])
+            
+                        # Canard lift curve slope
+            self.add_subsystem('canard_cl_alpha',
+                            CoupledCLAlphaCanard(manta=self.options['manta']),
+                            promotes_inputs=['CL_alpha_c',
+                                            'd_eps_c_d_alpha',
+                                            'S_c', 'S_w'],
+                            promotes_outputs=['CL_alpha_c_eff'])
+            
+            self.connect('c_cl_alpha_3d.CL_alpha', 'CL_alpha_c')
+        # end
+
+        
+
+
+        if self.options['manta'] == 1 and self.options['ray'] == 1:
+            # Sum the contributions
+            adder = om.AddSubtractComp()
+            adder.add_equation('CL_alpha_total',
+                            ['CL_alpha_w_eff', 'CL_alpha_c_eff'],
+                            desc='Total lift curve slope',
+                            scaling_factors=scaling_factors,units='1/rad')
+
+
+
+            self.add_subsystem('sum_cl_alpha', adder, promotes=['*'])
+        # end
 
 
 if __name__ == "__main__":
@@ -191,24 +219,50 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
     
     # Wing parameters
-    ivc.add_output('CL_alpha_w', val=5.5, units='1/rad', desc='Wing lift curve slope')
-    ivc.add_output('d_eps_w_d_alpha', val=0.25, desc='Wing downwash derivative')
     
+    # Wing parameters
+    ivc.add_output('mach_w', val=0.78, desc='Wing Mach number')
+    ivc.add_output('phi_50_w', val=5.0, units='deg', desc='Wing 50% chord sweep angle')
+    ivc.add_output('cl_alpha_airfoil_w', val=2*np.pi, units='1/rad', desc='Wing airfoil lift curve slope')
+    ivc.add_output('aspect_ratio_w', val=10.0, desc='Wing aspect ratio')
+    ivc.add_output('d_eps_w_d_alpha', val=0.25, desc='Wing downwash derivative')
+
     # Canard parameters
-    ivc.add_output('CL_alpha_c', val=4.0, units='1/rad', desc='Canard lift curve slope')
+    ivc.add_output('mach_c', val=0.78, desc='Canard Mach number')
+    ivc.add_output('phi_50_c', val=4.0, units='deg', desc='Canard 50% chord sweep angle')
+    ivc.add_output('cl_alpha_airfoil_c', val=2*np.pi, units='1/rad', desc='Canard airfoil lift curve slope')
+    ivc.add_output('aspect_ratio_c', val=10.0, desc='Canard aspect ratio')
     ivc.add_output('d_eps_c_d_alpha', val=0.1, desc='Canard downwash derivative')
+    
     ivc.add_output('S_c', val=20.0, units='m**2', desc='Canard reference area')
     ivc.add_output('S_w', val=120.0, units='m**2', desc='Wing reference area')
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
     prob.model.add_subsystem('cl_alpha_coupled', GroupCLAlpha(manta=1, ray=1), promotes=['*'])
+
+    
+    prob.model.connect('mach_w', 'w_cl_alpha_3d.mach')
+    prob.model.connect('phi_50_w', 'w_cl_alpha_3d.phi_50')
+    prob.model.connect('aspect_ratio_w', 'w_cl_alpha_3d.aspect_ratio')
+    prob.model.connect('cl_alpha_airfoil_w', 'w_cl_alpha_3d.cl_alpha_airfoil')
+
+    prob.model.connect('mach_c', 'c_cl_alpha_3d.mach')
+
+    prob.model.connect('phi_50_c', 'c_cl_alpha_3d.phi_50')
+    prob.model.connect('cl_alpha_airfoil_c', 'c_cl_alpha_3d.cl_alpha_airfoil')
+    prob.model.connect('aspect_ratio_c', 'c_cl_alpha_3d.aspect_ratio')
+
+
+
     
     # Setup problem
     prob.setup()
     
+    om.n2(prob.model)
     # Run baseline case
     prob.run_model()
+
 
 
     
