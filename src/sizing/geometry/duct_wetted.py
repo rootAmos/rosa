@@ -1,15 +1,15 @@
 import openmdao.api as om
 import numpy as np
 
-class NacelleWettedArea(om.ExplicitComponent):
+class DuctWettedArea(om.ExplicitComponent):
     """
-    Calculates the wetted area of a ducted duct nacelle using equation 13.12.
+    Calculates the wetted area of a ducted duct duct using equation 13.12.
     
     Inputs:
         c_duct : float
-            Nacelle length [m]
+            Duct length [m]
         od_duct : float
-            Nacelle diameter [m]
+            Duct diameter [m]
         mid_c_duct : float
             Inlet length [m]
         id_duct : float
@@ -19,19 +19,19 @@ class NacelleWettedArea(om.ExplicitComponent):
     
     Outputs:
         S_wet_duct : float
-            Nacelle wetted area [m**2]
+            Duct wetted area [m**2]
     """
     
     def setup(self):
         # Inputs
-        self.add_input('c_duct', val=0.0, units='m', desc='Nacelle length')
-        self.add_input('od_duct', val=0.0, units='m', desc='Nacelle outer diameter')
-        self.add_input('id_duct', val=0.0, units='m', desc='Nacelle inner diameter')
+        self.add_input('c_duct', val=0.0, units='m', desc='Duct length')
+        self.add_input('od_duct', val=0.0, units='m', desc='Duct outer diameter')
+        self.add_input('id_duct', val=0.0, units='m', desc='Duct inner diameter')
         
 
         # Output
         self.add_output('S_wet_duct', val=0.0, units='m**2', 
-                       desc='Nacelle wetted area')
+                       desc='Duct wetted area')
         
         # Declare partials
         self.declare_partials('S_wet_duct', 
@@ -85,13 +85,13 @@ if __name__ == "__main__":
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
-    ivc.add_output('c_duct', val=3.0, units='m', desc='Nacelle length')
-    ivc.add_output('od_duct', val=2.0, units='m', desc='Nacelle outer diameter')
-    ivc.add_output('id_duct', val=1.5, units='m', desc='Nacelle inner diameter')
+    ivc.add_output('c_duct', val=3.0, units='m', desc='Duct length')
+    ivc.add_output('od_duct', val=2.0, units='m', desc='Duct outer diameter')
+    ivc.add_output('id_duct', val=1.5, units='m', desc='Duct inner diameter')
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('nacelle', NacelleWettedArea(), promotes=['*'])
+    prob.model.add_subsystem('duct', DuctWettedArea(), promotes=['*'])
     
     # Setup problem
     prob.setup()
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     
     print('\nBaseline Configuration:')
     print('----------------------')
-    print(f'  Nacelle Length:       {prob.get_val("c_duct")} m')
+    print(f'  Duct Length:       {prob.get_val("c_duct")} m')
     print(f'  Outer Diameter:       {prob.get_val("od_duct")} m')
     print(f'  Inner Diameter:       {prob.get_val("id_duct")} m')
 
@@ -133,10 +133,10 @@ if __name__ == "__main__":
     
     plt.subplot(121)
     plt.plot(c_range, S_wet_c)
-    plt.xlabel('Nacelle Length (m)')
+    plt.xlabel('Duct Length (m)')
     plt.ylabel('Wetted Area (m²)')
     plt.grid(True)
-    plt.title('Effect of Nacelle Length')
+    plt.title('Effect of Duct Length')
     
     plt.subplot(122)
     plt.plot(od_range, S_wet_od)

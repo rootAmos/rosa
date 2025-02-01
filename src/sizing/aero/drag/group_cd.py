@@ -57,23 +57,33 @@ class GroupCD(om.Group):
     Group that computes total drag coefficient by summing induced drag (CDi)
     and zero-lift drag (CD0) contributions.
     """
-    
+
+    def initialize(self):
+        self.options.declare('manta', default=0, desc='Flag for Manta configuration')
+        self.options.declare('ray', default=0, desc='Flag for Ray configuration')
+        self.options.declare('scaling_factors', default=[1.0, 1.0], desc='Scaling factors for induced drag summation')
+
     def setup(self):
         # Add CD0 group
+
         self.add_subsystem('CD0',
-                          GroupCD0(),
+                          GroupCD0(manta=self.options['manta'],
+                                   ray=self.options['ray']),
                           promotes_inputs=['S_wet_wing', 'S_wet_canard', 'S_wet_fuselage', 
                                         'S_wet_nacelle', 'S_ref',
                                         'FF_wing', 'FF_canard', 'FF_fuselage', 'FF_nacelle',
                                         'Cf'],
                           promotes_outputs=['CD0_total'])
+
         
         # Add CDi group
         self.add_subsystem('CDi',
-                          GroupCDi(),
+                          GroupCDi(manta=self.options['manta'],
+                                   ray=self.options['ray']),
                           promotes_inputs=['CL_wing', 'AR_wing', 'e_wing',
                                          'CL_canard', 'AR_canard', 'e_canard'],
                           promotes_outputs=['CDi_total'])
+
         
         # Sum the contributions
         adder = om.AddSubtractComp()

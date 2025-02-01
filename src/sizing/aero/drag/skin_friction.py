@@ -22,18 +22,18 @@ class SkinFriction(om.ExplicitComponent):
     def setup(self):
         # Inputs
         self.add_input('Re', val=1e6, desc='Reynolds number')
-        self.add_input('M', val=0.0, desc='Mach number')
+        self.add_input('mach', val=0.0, desc='Mach number')
         self.add_input('k_lam', val=0.0, desc='Laminar flow fraction')
         
         # Outputs
         self.add_output('Cf', val=0.0, desc='Skin friction coefficient')
         
         # Declare partials
-        self.declare_partials('Cf', ['Re', 'M', 'k_lam'])
+        self.declare_partials('Cf', ['Re', 'mach', 'k_lam'])
         
     def compute(self, inputs, outputs):
         Re = inputs['Re']
-        M = inputs['M']
+        M = inputs['mach']
         k_lam = inputs['k_lam']
         
         # Calculate components
@@ -45,13 +45,13 @@ class SkinFriction(om.ExplicitComponent):
         
     def compute_partials(self, inputs, partials):
         Re = inputs['Re']
-        M = inputs['M']
+        M = inputs['mach']
         k_lam = inputs['k_lam']
         
         # Combined derivatives
         partials['Cf', 'Re'] = (0.5098*(k_lam - 1))/(Re*(0.4343*np.log(Re))**3.5800*(0.1440*M**2 + 1)**0.6500) - (0.6640*k_lam)/Re**1.5000
 
-        partials['Cf', 'M'] =  (0.0852*M*(k_lam - 1))/((0.4343*np.log(Re))**2.5800*(0.1440*M**2 + 1)**1.6500)
+        partials['Cf', 'mach'] =  (0.0852*M*(k_lam - 1))/((0.4343*np.log(Re))**2.5800*(0.1440*M**2 + 1)**1.6500)
 
         partials['Cf', 'k_lam'] = 1.3280/Re**0.5000 - 0.4550/((0.4343*np.log(Re))**2.5800*(0.1440*M**2 + 1)**0.6500)
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # Create IndepVarComp for inputs
     ivc = om.IndepVarComp()
     ivc.add_output('Re', val=1e7)
-    ivc.add_output('M', val=0.3)
+    ivc.add_output('mach', val=0.3)
     ivc.add_output('k_lam', val=0.1)
     
     # Add IVC and skin friction component to model

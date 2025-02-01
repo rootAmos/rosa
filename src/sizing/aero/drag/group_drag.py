@@ -1,6 +1,6 @@
 import openmdao.api as om
 import numpy as np
-
+from group_cd import GroupCD
 class DragForce(om.ExplicitComponent):
     """
     Calculates drag force for a lifting surface (wing or canard).
@@ -24,36 +24,36 @@ class DragForce(om.ExplicitComponent):
     def setup(self):
         # Flow condition inputs
         self.add_input('rho', val=1.225, units='kg/m**3', desc='Air density')
-        self.add_input('V', val=0.0, units='m/s', desc='Airspeed')
+        self.add_input('u', val=0.0, units='m/s', desc='Airspeed')
         
         # Surface inputs
         self.add_input('CD', val=0.0, desc='Drag coefficient')
-        self.add_input('S', val=0.0, units='m**2', desc='Reference area')
+        self.add_input('S_ref', val=0.0, units='m**2', desc='Reference area')
         
         # Output
-        self.add_output('D', val=0.0, units='N', desc='Drag force')
+        self.add_output('drag', val=0.0, units='N', desc='Drag force')
         
         # Declare partials
-        self.declare_partials('D', ['rho', 'V', 'CD', 'S'])
+        self.declare_partials('drag', ['rho', 'u', 'CD', 'S_ref'])
         
     def compute(self, inputs, outputs):
         
         # Dynamic pressure
-        q = 0.5 * inputs['rho'] * inputs['V']**2
+        q = 0.5 * inputs['rho'] * inputs['u']**2
         
         # Drag force
-        outputs['D'] = q * inputs['CD'] * inputs['S']
+        outputs['drag'] = q * inputs['CD'] * inputs['S_ref']
         
     def compute_partials(self, inputs, partials):
 
         # Common terms
-        dq_drho = 0.5 * inputs['V']**2
-        dq_dV = inputs['rho'] * inputs['V']
+        dq_drho = 0.5 * inputs['u']**2
+        dq_dV = inputs['rho'] * inputs['u']
         
-        partials['D', 'rho'] = dq_drho * inputs['CD'] * inputs['S']
-        partials['D', 'V'] = dq_dV * inputs['CD'] * inputs['S']
-        partials['D', 'CD'] = 0.5 * inputs['rho'] * inputs['V']**2 * inputs['S']
-        partials['D', 'S'] = 0.5 * inputs['rho'] * inputs['V']**2 * inputs['CD']
+        partials['drag', 'rho'] = dq_drho * inputs['CD'] * inputs['S_ref']
+        partials['drag', 'u'] = dq_dV * inputs['CD'] * inputs['S_ref']
+        partials['drag', 'CD'] = 0.5 * inputs['rho'] * inputs['u']**2 * inputs['S_ref']
+        partials['drag', 'S_ref'] = 0.5 * inputs['rho'] * inputs['u']**2 * inputs['CD']
 
 
 class GroupDrag(om.Group):
@@ -64,31 +64,18 @@ class GroupDrag(om.Group):
     
     def setup(self):
         # Wing drag force
-        self.add_subsystem('wing_drag', 
-                          DragForce(),
-                          promotes_inputs=[('rho', 'rho'),
-                                         ('V', 'V'),
-                                         ('CD', 'CD_wing'),
-                                         ('S', 'S_wing')],
-                          promotes_outputs=[('D', 'D_wing')])
-        
-        # Canard drag force
-        self.add_subsystem('canard_drag',
-                          DragForce(),
-                          promotes_inputs=[('rho', 'rho'),
-                                         ('V', 'V'),
-                                         ('CD', 'CD_canard'),
-                                         ('S', 'S_canard')],
-                          promotes_outputs=[('D', 'D_canard')])
+        self.add_subsystem('cd', 
+                          GroupCD(manta=self.options['manta'],
+                                  ray=self.options['ray']),
+                          promotes_inputs=[],
+                          promotes_outputs=[])
 
         
-        # Sum the contributions
-        adder = om.AddSubtractComp()
-        adder.add_equation('D_total',
-                          ['D_wing', 'D_canard'],
-                          desc='Total drag force')
-        
-        self.add_subsystem('sum_drag', adder, promotes=['*'])
+        # Canard drag force
+        self.add_subsystem('drag',
+                          DragForce(),
+                          promotes_inputs=['rho','u'],
+                          promotes_outputs=[('drag', 'D_canard')])
 
 
 if __name__ == "__main__":
@@ -100,7 +87,7 @@ if __name__ == "__main__":
     
     # Flow conditions
     ivc.add_output('rho', val=1.225, units='kg/m**3', desc='Air density')
-    ivc.add_output('V', val=100.0, units='m/s', desc='Airspeed')
+    ivc.add_output('u', val=100.0, units='m/s', desc='Airspeed')
     
     # Wing parameters
     ivc.add_output('CD_wing', val=0.015, desc='Wing drag coefficient')
@@ -151,7 +138,7 @@ if __name__ == "__main__":
     D_canard = []
     D_total = []
     for V in V_range:
-        prob.set_val('V', V)
+        prob.set_val('u', V)
         prob.run_model()
         D_wing.append(prob.get_val('D_wing')[0])
         D_canard.append(prob.get_val('D_canard')[0])
@@ -168,7 +155,7 @@ if __name__ == "__main__":
     plt.title('Effect of Velocity')
     
     # Reset velocity
-    prob.set_val('V', 100.0)
+    prob.set_val('u', 100.0)
     
     # CD sweep
     CD_range = np.linspace(0.01, 0.03, 50)

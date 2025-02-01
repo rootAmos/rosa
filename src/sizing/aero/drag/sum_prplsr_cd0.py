@@ -1,37 +1,37 @@
 import openmdao.api as om
 
-class TotalNacelleDrag(om.ExplicitComponent):
+class TotalDuctDrag(om.ExplicitComponent):
     """
-    Computes total zero-lift drag contribution from Manta's ducted fan nacelles.
+    Computes total zero-lift drag contribution from Manta's ducted fan ducts.
     
     Inputs:
-        CD0_nacelle : float
-            Zero-lift drag coefficient per nacelle [-]
-        num_nacelles : float
-            Number of ducted fan nacelles [-]
+        CD0_duct : float
+            Zero-lift drag coefficient per duct [-]
+        num_ducts : float
+            Number of ducted fan ducts [-]
             
     Outputs:
-        CD0_total_nacelles : float
-            Total zero-lift drag coefficient from all nacelles [-]
+        CD0_total_ducts : float
+            Total zero-lift drag coefficient from all ducts [-]
     """
     
     def setup(self):
-        self.add_input('CD0_nacelle', val=0.0,
-                      desc='Zero-lift drag coefficient per nacelle')
-        self.add_input('num_nacelles', val=1.0,
-                      desc='Number of nacelles')
+        self.add_input('CD0_duct', val=0.0,
+                      desc='Zero-lift drag coefficient per duct')
+        self.add_input('num_ducts', val=1.0,
+                      desc='Number of ducts')
         
-        self.add_output('CD0_total_nacelles',
-                       desc='Total nacelle drag coefficient')
+        self.add_output('CD0_total_ducts',
+                       desc='Total duct drag coefficient')
         
-        self.declare_partials('CD0_total_nacelles', ['CD0_nacelle', 'num_nacelles'])
+        self.declare_partials('CD0_total_ducts', ['CD0_duct', 'num_ducts'])
         
     def compute(self, inputs, outputs):
-        outputs['CD0_total_nacelles'] = inputs['CD0_nacelle'] * inputs['num_nacelles']
+        outputs['CD0_total_ducts'] = inputs['CD0_duct'] * inputs['num_ducts']
         
     def compute_partials(self, inputs, partials):
-        partials['CD0_total_nacelles', 'CD0_nacelle'] = inputs['num_nacelles']
-        partials['CD0_total_nacelles', 'num_nacelles'] = inputs['CD0_nacelle']
+        partials['CD0_total_ducts', 'CD0_duct'] = inputs['num_ducts']
+        partials['CD0_total_ducts', 'num_ducts'] = inputs['CD0_duct']
 
 
 class TotalPodDrag(om.ExplicitComponent):

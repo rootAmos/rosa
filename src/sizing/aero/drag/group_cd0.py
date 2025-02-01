@@ -1,7 +1,7 @@
 import openmdao.api as om
-from src.sizing.aero.cd0_component import ZeroLiftDragComponent
-from src.sizing.aero.misc_cd0 import LeakageDrag, ExcrescenceDrag
-from .group_prplsr_cd0 import NacelleDragGroup, PodDragGroup
+from cd0_component import ZeroLiftDragComponent
+from misc_cd0 import LeakageDrag, ExcrescenceDrag
+from group_prplsr_cd0 import NacelleDragGroup, PodDragGroup
 
 class GroupCD0(om.Group):
     """
@@ -20,17 +20,13 @@ class GroupCD0(om.Group):
 
             # Add CD0 components for main surfaces
             self.add_subsystem('cd0_wing', ZeroLiftDragComponent(), 
-                            promotes_inputs=[('Cf', 'Cf_wing'), 
-                                            ('FF', 'FF_wing'),
-                                            ('Q', 'Q_wing'),
-                                            ('S_wet', 'S_wet_wing'),
-                                            'S_ref'])
+                            promotes_inputs=[],
+                            promotes_outputs=[])
         
+
             # Add propulsion drag groups
             self.add_subsystem('cd0_nacelles', NacelleDragGroup(),
-                          promotes_inputs=['Cf_nacelle', 'FF_nacelle', 
-                                         'Q_nacelle', 'S_wet_nacelle',
-                                         'S_ref', 'num_nacelles'])
+                          promotes_inputs=[], promotes_outputs=['*'])
             
             self.add_subsystem('cd0_leakage', LeakageDrag(
                 CD0_leakage=self.options['CD0_leakage']))
@@ -126,8 +122,10 @@ if __name__ == "__main__":
     
     # Setup and run problem
     prob.setup()
+    om.n2(prob)
     prob.run_model()
     
+
     # Print results
 
     print('\nComponent CD0s:')
