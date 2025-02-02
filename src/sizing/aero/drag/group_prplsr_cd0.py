@@ -1,5 +1,5 @@
 import openmdao.api as om
-from cd0_component import ZeroLiftDragComponent
+from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
 from sum_prplsr_cd0 import TotalDuctDrag, TotalPodDrag
 from skin_friction import SkinFriction
 from reynolds import ReynoldsNumber
@@ -29,13 +29,6 @@ class DuctDragGroup(om.Group):
     Group that computes total nacelle drag for Manta's ducted fans.
     """
     def setup(self):
-
-        self.add_subsystem('atmos', ComputeAtmos(),
-                          promotes_inputs=['alt'],
-                          promotes_outputs=['*'])
-        
-        self.add_subsystem('mach', MachNumber(),
-                          promotes_inputs=['*'],promotes_outputs=['*'])
         
         self.add_subsystem('duct_reynolds', ReynoldsNumber(),
                           promotes_inputs=['*'],promotes_outputs=['*'])
@@ -73,16 +66,8 @@ class PodDragGroup(om.Group):
     def setup(self):
         # Add component to compute single pod CD0
 
-        self.add_subsystem('atmos', ComputeAtmos(),
-                          promotes_inputs=['alt'],promotes_outputs=['*'])
-        
-        self.add_subsystem('mach', MachNumber(),
-                          promotes_inputs=['*'],promotes_outputs=['*'])
-
         self.add_subsystem('pod_reynolds', ReynoldsNumber(),
                           promotes_inputs=['*'],promotes_outputs=['*'])
-
-
 
         self.add_subsystem('pod_cf', SkinFriction(),
                           promotes_inputs=['*'],promotes_outputs=['*'])
@@ -125,10 +110,12 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
     
     # Duct parameters
-    ivc.add_output('alt', val=30000, units='ft', desc='Altitude')
+    #ivc.add_output('alt', val=30000, units='ft', desc='Altitude')
     ivc.add_output('u', val=50.0, units='m/s', desc='Flow speed')
     ivc.add_output('duct_l_char', val=1.0, units='m',desc='Duct Characteristic length')
     ivc.add_output('mu', val=1.789e-5, units='Pa*s', desc='Dynamic viscosity')
+    ivc.add_output('mach', val=0.8, desc='Mach number')
+    ivc.add_output('rho', val=0.3639, units='kg/m**3', desc='Density')
 
     ivc.add_output('c_duct', val=3.0, units='m', desc='Nacelle length')
     ivc.add_output('od_duct', val=2.0, units='m', desc='Duct outer diameter')
@@ -173,12 +160,11 @@ if __name__ == "__main__":
     # Create IndepVarComp
     ivc = om.IndepVarComp()
     
-    # Duct parameters
-    ivc.add_output('alt', val=30000, units='ft', desc='Altitude')
+    # Pod parameters
     ivc.add_output('u', val=50.0, units='m/s', desc='Flow speed')
-    ivc.add_output('pod_l_char', val=1.0, units='m',desc='Pod Characteristic length')
     ivc.add_output('mu', val=1.789e-5, units='Pa*s', desc='Dynamic viscosity')
-
+    ivc.add_output('mach', val=0.8, desc='Mach number')
+    ivc.add_output('rho', val=0.3639, units='kg/m**3', desc='Density')
 
 
     ivc.add_output('l_pod', val=3.0, units='m', desc='Pod length')
@@ -197,7 +183,7 @@ if __name__ == "__main__":
     
 
     # Make Connections
-    prob_pod.model.connect('pod_l_char', 'l_char')
+    prob_pod.model.connect('l_pod', 'l_char')
     prob_pod.model.connect('k_lam_pod', 'k_lam')
     prob_pod.model.connect('Q_pod', 'Q')
 

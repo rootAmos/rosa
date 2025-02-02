@@ -1,9 +1,16 @@
 import openmdao.api as om
 import numpy as np
 
-from cl_alpha_airfoil import LiftCurveSlope3D
+import os
+import sys
+import pdb
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
+
+
+from src.sizing.aero.lift.cl_alpha_airfoil import LiftCurveSlope3D
 
 class CoupledCLAlphaManta(om.ExplicitComponent):
+
     """
     Calculates the effective lift curve slope for the wing, accounting for downwash.
     

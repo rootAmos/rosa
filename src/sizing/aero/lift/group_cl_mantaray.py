@@ -73,12 +73,10 @@ if __name__ == "__main__":
     prob.model.connect('CL_alpha_ray_eff', 'ray_cl.CL_alpha_eff')
 
     prob.model.connect('alpha', 'manta_cl.alpha')
-    prob.model.connect('alpha', 'ray_cl.alpha')
 
 
     # Setup problem
     prob.setup()
-
 
 
 

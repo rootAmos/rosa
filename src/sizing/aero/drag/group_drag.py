@@ -1,6 +1,6 @@
 import openmdao.api as om
 import numpy as np
-from group_cd import GroupCD
+from src.sizing.aero.drag.group_cd_manta import GroupCD
 class DragForce(om.ExplicitComponent):
     """
     Calculates drag force for a lifting surface (wing or canard).

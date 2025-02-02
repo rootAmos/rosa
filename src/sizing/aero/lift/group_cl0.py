@@ -2,7 +2,14 @@ import openmdao.api as om
 import numpy as np
 import matplotlib.pyplot as plt
 
-from zero_ang_lift import ZeroLiftAngle, ZeroAngleLift
+
+import os
+import sys
+import pdb
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
+
+from src.sizing.aero.lift.zero_ang_lift import ZeroLiftAngle, ZeroAngleLift
+
 
 class GroupCL0(om.Group):
 

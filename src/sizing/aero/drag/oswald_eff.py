@@ -44,10 +44,10 @@ eq36, 37, 38
         self.add_input('k_WL', val=0.0, desc='Winglet effectiveness factor. [1] Table 4')
         
         # Output
-        self.add_output('e', val=0.0, desc='Oswald efficiency factor')
+        self.add_output('oswald_no', val=0.0, desc='Oswald efficiency factor')
         
         # Declare partials
-        self.declare_partials('e', ['aspect_ratio', 'taper', 'sweep_25', 'h_winglet', 'span', 'k_WL'])
+        self.declare_partials('oswald_no', ['aspect_ratio', 'taper', 'sweep_25', 'h_winglet', 'span', 'k_WL'])
         
     def compute(self, inputs, outputs):
         aspect_ratio = inputs['aspect_ratio']
@@ -77,7 +77,7 @@ eq36, 37, 38
         k_e_WL = (1 + 2 * h_winglet/(k_WL * span))**2
         
         # Final Oswald efficiency [1] eq 45
-        outputs['e'] = e_theo * k_e_WL
+        outputs['oswald_no'] = e_theo * k_e_WL
         
     def compute_partials(self, inputs, partials):
         aspect_ratio = inputs['aspect_ratio']
@@ -88,17 +88,17 @@ eq36, 37, 38
         k_WL = inputs['k_WL']
         
         # Final derivatives
-        partials['e', 'aspect_ratio'] = (((2*h_winglet)/(span*k_WL) + 1)**2*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
+        partials['oswald_no', 'aspect_ratio'] = (((2*h_winglet)/(span*k_WL) + 1)**2*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
 
-        partials['e', 'taper'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.3318*taper - 0.1493*np.exp(0.0375*sweep_25) - 0.4500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.2096*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 + 0.0479))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
+        partials['oswald_no', 'taper'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.3318*taper - 0.1493*np.exp(0.0375*sweep_25) - 0.4500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.2096*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 + 0.0479))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
 
-        partials['e', 'sweep_25'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.0012*np.exp(0.0375*sweep_25) - 0.0056*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570) + 0.0076*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 - 0.0035*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
+        partials['oswald_no', 'sweep_25'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.0012*np.exp(0.0375*sweep_25) - 0.0056*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570) + 0.0076*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 - 0.0035*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
 
-        partials['e', 'h_winglet'] = -(4*((2*h_winglet)/(span*k_WL) + 1))/(span*k_WL*(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1))
+        partials['oswald_no', 'h_winglet'] = -(4*((2*h_winglet)/(span*k_WL) + 1))/(span*k_WL*(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1))
 
-        partials['e', 'span'] = (4*h_winglet*((2*h_winglet)/(span*k_WL) + 1))/(span**2*k_WL*(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1))
+        partials['oswald_no', 'span'] = (4*h_winglet*((2*h_winglet)/(span*k_WL) + 1))/(span**2*k_WL*(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1))
 
-        partials['e', 'k_WL'] = (4*h_winglet*((2*h_winglet)/(span*k_WL) + 1))/(span*k_WL**2*(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1))
+        partials['oswald_no', 'k_WL'] = (4*h_winglet*((2*h_winglet)/(span*k_WL) + 1))/(span*k_WL**2*(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1))
 
 
 
