@@ -68,7 +68,7 @@ class ZeroAngleLift(om.ExplicitComponent):
     Calculates the zero-angle lift coefficient.
     
     Inputs:
-        CL_alpha : float
+        CL_alpha_eff : float
             Lift curve slope [1/rad]
         alpha0 : float
             Zero-lift angle of attack [rad]
@@ -80,7 +80,7 @@ class ZeroAngleLift(om.ExplicitComponent):
     
     def setup(self):
         # Inputs
-        self.add_input('CL_alpha', val=0.0, units='1/rad', 
+        self.add_input('CL_alpha_eff', val=0.0, units='1/rad', 
                       desc='Lift curve slope')
         self.add_input('alpha0', val=0.0, units='rad', 
                       desc='Zero-lift angle of attack')
@@ -90,22 +90,22 @@ class ZeroAngleLift(om.ExplicitComponent):
                        desc='Zero-angle lift coefficient')
         
         # Declare partials
-        self.declare_partials('CL0', ['CL_alpha', 'alpha0'])
+        self.declare_partials('CL0', ['CL_alpha_eff', 'alpha0'])
         
     def compute(self, inputs, outputs):
-        CL_alpha = inputs['CL_alpha']
+        CL_alpha_eff = inputs['CL_alpha_eff']
         alpha0 = inputs['alpha0']
         
-        # Equation: CL0 = -CL_alpha * alpha0
-        outputs['CL0'] = -CL_alpha * alpha0
+        # Equation: CL0 = -CL_alpha_eff * alpha0
+        outputs['CL0'] = -CL_alpha_eff * alpha0
         
     def compute_partials(self, inputs, partials):
-        CL_alpha = inputs['CL_alpha']
+        CL_alpha_eff = inputs['CL_alpha_eff']
         alpha0 = inputs['alpha0']
         
         # Derivatives
-        partials['CL0', 'CL_alpha'] = -alpha0
-        partials['CL0', 'alpha0'] = -CL_alpha
+        partials['CL0', 'CL_alpha_eff'] = -alpha0
+        partials['CL0', 'alpha0'] = -CL_alpha_eff
 
 
 if __name__ == "__main__":
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
-    ivc.add_output('CL_alpha', val=5.5, units='1/rad', desc='Lift curve slope')
+    ivc.add_output('CL_alpha_eff', val=5.5, units='1/rad', desc='Lift curve slope')
     ivc.add_output('alpha0', val=-2.0, units='deg', desc='Zero-lift angle of attack')
     
     # Add subsystems to model
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     
     print('\nBaseline Configuration:')
     print('----------------------')
-    print(f'  CL_alpha:            {prob.get_val("CL_alpha")[0]:8.3f} /rad')
+    print(f'  CL_alpha_eff:            {prob.get_val("CL_alpha_eff")[0]:8.3f} /rad')
     print(f'  Alpha_0:             {np.degrees(prob.get_val("alpha0")[0]):8.3f} deg')
     print(f'  CL_0:                {prob.get_val("CL0")[0]:8.3f}')
     
@@ -139,23 +139,23 @@ if __name__ == "__main__":
     # Create figure with 2 subplots
     plt.figure(figsize=(12, 5))
     
-    # CL_alpha sweep
-    CL_alpha_range = np.linspace(4.0, 7.0, 50)
+    # CL_alpha_eff sweep
+    CL_alpha_eff_range = np.linspace(4.0, 7.0, 50)
     CL0_values = []
-    for cla in CL_alpha_range:
-        prob.set_val('CL_alpha', cla)
+    for cla in CL_alpha_eff_range:
+        prob.set_val('CL_alpha_eff', cla)
         prob.run_model()
         CL0_values.append(prob.get_val('CL0')[0])
     
     plt.subplot(121)
-    plt.plot(CL_alpha_range, CL0_values)
-    plt.xlabel('CL_alpha [1/rad]')
+    plt.plot(CL_alpha_eff_range, CL0_values)
+    plt.xlabel('CL_alpha_eff [1/rad]')
     plt.ylabel('CL_0')
     plt.grid(True)
     plt.title('Effect of Lift Curve Slope')
     
     # Alpha0 sweep
-    prob.set_val('CL_alpha', 5.5)  # Reset to baseline
+    prob.set_val('CL_alpha_eff', 5.5)  # Reset to baseline
     alpha0_range = np.linspace(-4.0, 0.0, 50)  # degrees
     CL0_values = []
     for a0 in alpha0_range:

@@ -1,90 +1,39 @@
 import openmdao.api as om
 import numpy as np
 
-class LiftCoefficient(om.ExplicitComponent):
-    """
-    Computes lift coefficient using:
-    CL = CL0 + CL_alpha_eff * alpha
-    
-    Inputs:
-        CL0 : float
-            Zero-angle lift coefficient [-]
-        CL_alpha_eff : float
-            Effective lift curve slope [1/rad]
-        alpha : float
-            Angle of attack [rad]
-    
-    Outputs:
-        CL : float
-            Lift coefficient [-]
-    """
-    
-    def setup(self):
-        self.add_input('CL0', val=0.0, desc='Zero-angle lift coefficient')
-        self.add_input('CL_alpha_eff', val=0.0, units='1/rad',
-                      desc='Effective lift curve slope')
-        self.add_input('alpha', val=0.0, units='rad',
-                      desc='Angle of attack')
-        
-        self.add_output('CL', val=0.0, desc='Lift coefficient')
-        
-        self.declare_partials('CL', ['CL0', 'CL_alpha_eff', 'alpha'])
-        
-    def compute(self, inputs, outputs):
-        outputs['CL'] = inputs['CL0'] + inputs['CL_alpha_eff'] * inputs['alpha']
-        
-    def compute_partials(self, inputs, partials):
-        partials['CL', 'CL0'] = 1.0
-        partials['CL', 'CL_alpha_eff'] = inputs['alpha']
-        partials['CL', 'alpha'] = inputs['CL_alpha_eff']
+from cl import LiftCoefficient
 
-
-class GroupCL(om.Group):
+class GroupCLMantaRay(om.Group):
     """
+
     Group that computes total lift coefficient by combining wing and canard.
     """
     
     def initialize(self):
-        self.options.declare('manta', default=0, desc='Flag for Manta configuration')
-        self.options.declare('ray', default=0, desc='Flag for Ray configuration')
-
+        pass
     def setup(self):
 
-        scaling_factors = [self.options['manta'], self.options['ray']]
 
-        if self.options['manta'] == 1:
-            # Wing lift coefficient
-            self.add_subsystem('wing_cl',
-                            LiftCoefficient(),
-                            promotes_inputs=[
-                                            'alpha'],
-                            promotes_outputs=[])
-        # end
-            
-        if self.options['ray'] == 1:
-            # Canard lift coefficient
-            self.add_subsystem('canard_cl',
-                            LiftCoefficient(),
-                            promotes_inputs=[
-                                            'alpha'],
-                            promotes_outputs=[])
-        # end
+        self.add_subsystem('manta_cl',
+                        LiftCoefficient(),
+                        promotes_inputs=[],
+                        promotes_outputs=[])
         
 
-        self.connect('wing_cl.CL', 'CL_w')
-        self.connect('canard_cl.CL', 'CL_c')
-        
+        self.add_subsystem('ray_cl',
+                        LiftCoefficient(),
+                        promotes_inputs=[],
+                        promotes_outputs=[]) 
 
-        if self.options['manta'] == 1 and self.options['ray'] == 1:
-            # Sum the contributions
-            adder = om.AddSubtractComp()
-            adder.add_equation('CL_total',
-                            ['CL_w', 'CL_c'],
-                            desc='Total lift coefficient',
-                            scaling_factors=scaling_factors)
-            
+        self.connect('manta_cl.CL', 'CL_manta')
+        self.connect('ray_cl.CL', 'CL_ray')
 
-            self.add_subsystem('sum_cl', adder, promotes=['*'])
+        adder = om.AddSubtractComp()
+        adder.add_equation('CL_total',
+                        ['CL_manta', 'CL_ray'],
+                        desc='Total lift coefficient')
+
+        self.add_subsystem('sum_cl', adder, promotes=['*'])
 
 
 
@@ -96,32 +45,40 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
     
     # Wing parameters
-    ivc.add_output('CL0_w', val=0.2, desc='Wing zero-angle lift coefficient')
-    ivc.add_output('CL_alpha_w_eff', val=5.5, units='1/rad',
-                   desc='Wing effective lift curve slope')
+    ivc.add_output('CL0_manta', val=0.2, desc='Manta zero-angle lift coefficient')
+    ivc.add_output('CL_alpha_manta_eff', val=5.5, units='1/rad',
+                   desc='Manta effective lift curve slope')
     
-    # Canard parameters
-    ivc.add_output('CL0_c', val=0.1, desc='Canard zero-angle lift coefficient')
-    ivc.add_output('CL_alpha_c_eff', val=4.0, units='1/rad',
-                   desc='Canard effective lift curve slope')
+
+    # Ray parameters
+    ivc.add_output('CL0_ray', val=0.1, desc='Ray zero-angle lift coefficient')
+    ivc.add_output('CL_alpha_ray_eff', val=4.0, units='1/rad',
+                   desc='Ray effective lift curve slope')
+
     
     # Common parameters
     ivc.add_output('alpha', val=2.0, units='deg', desc='Angle of attack')
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('CL', GroupCL(manta=1, ray = 1), promotes=['*'])
+    prob.model.add_subsystem('CL', GroupCLMantaRay(), promotes=['*'])
     
 
-    prob.model.connect('CL0_w', 'wing_cl.CL0')
-    prob.model.connect('CL_alpha_w_eff', 'wing_cl.CL_alpha_eff')
+
+    prob.model.connect('CL0_manta', 'manta_cl.CL0')
+    prob.model.connect('CL_alpha_manta_eff', 'manta_cl.CL_alpha_eff')
 
 
-    prob.model.connect('CL0_c', 'canard_cl.CL0')
-    prob.model.connect('CL_alpha_c_eff', 'canard_cl.CL_alpha_eff')
+    prob.model.connect('CL0_ray', 'ray_cl.CL0')
+    prob.model.connect('CL_alpha_ray_eff', 'ray_cl.CL_alpha_eff')
+
+    prob.model.connect('alpha', 'manta_cl.alpha')
+    prob.model.connect('alpha', 'ray_cl.alpha')
+
 
     # Setup problem
     prob.setup()
+
 
 
 
