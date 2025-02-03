@@ -1,7 +1,7 @@
 import numpy as np  
 import openmdao.api as om
 
-
+import pdb
 
 class ComputeAtmos(om.ExplicitComponent):
     """
@@ -11,16 +11,22 @@ class ComputeAtmos(om.ExplicitComponent):
     [1]  NASA Earth Atmosphere Model ~ https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
     """
 
+    def initialize(self):
+        self.options.declare('N', types=int)
+
     def setup(self):
 
+        N = self.options['N']
 
         # Inputs    
-        self.add_input('alt', val= 1.0, desc='trajectory in the z-axis of earth fixed body frame', units='m')
+        self.add_input('alt', val= np.ones(N), desc='trajectory in the z-axis of earth fixed body frame', units='m')
+
 
         # Outputs
-        self.add_output('rho', val= 1.0, desc='air density', units='kg/m**3')
-        self.add_output('temp', val= 1.0, desc='air temperature', units='degC')
-        self.add_output('pressure', val= 1.0, desc='air pressure', units='Pa')
+        self.add_output('rho', val= np.ones(N), desc='air density', units='kg/m**3')
+        self.add_output('temp', val= np.ones(N), desc='air temperature', units='degC')
+        self.add_output('pressure', val= np.ones(N), desc='air pressure', units='Pa')
+
 
     def setup_partials(self):
 
@@ -42,17 +48,19 @@ class ComputeAtmos(om.ExplicitComponent):
         # Density (kg/m**3)
         rho = pressure/(0.2869*(temp+273.1))
 
+
         outputs['rho'] = rho
         outputs['temp'] = temp
         outputs['pressure'] = pressure
 
     def compute_partials(self, inputs, partials):
 
-        alt = inputs['alt']        
-
+        alt = inputs['alt']    
+        N = self.options['N']
         partials['temp', 'alt'] =  -0.00649
-        partials['pressure', 'alt'] = -(4318934697*(14407/14404 - (649*alt)/28808000)**(532/125))/360100000000
-        partials['rho', 'alt'] = (4318934697*(14407/14404 - (649*alt)/28808000)**(532/125))/(360100000000*((1861981*alt)/1000000000 - 41333683/500000)) + (18860005549*(14407/14404 - (649*alt)/28808000)**(657/125))/(100000000000*((1861981*alt)/1000000000 - 41333683/500000)**2)
+        partials['pressure', 'alt'] = np.eye(N) * -(4318934697*(14407/14404 - (649*alt)/28808000)**(532/125))/360100000000
+        partials['rho', 'alt'] = np.eye(N) * (4318934697*(14407/14404 - (649*alt)/28808000)**(532/125))/(360100000000*((1861981*alt)/1000000000 - 41333683/500000)) + np.eye(N) * (18860005549*(14407/14404 - (649*alt)/28808000)**(657/125))/(100000000000*((1861981*alt)/1000000000 - 41333683/500000)**2)
+
 
 
 

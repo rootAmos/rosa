@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.
 
 from src.sizing.aero.drag.group_cdi_mantaray import GroupCDiMantaRay
 from src.sizing.aero.drag.group_cd0_mantaray import GroupCD0MantaRay
-
+from src.sizing.aero.drag.wave_drag import WaveDrag
 
 
 
@@ -33,12 +33,13 @@ class GroupCDMantaRay(om.Group):
 
         self.add_subsystem('cdi_manta_ray', GroupCDiMantaRay(manta=self.options['manta'], ray=self.options['ray']), promotes_inputs=['*'], promotes_outputs=['*'])   
         self.add_subsystem('cd0_manta_ray', GroupCD0MantaRay(), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('wave_drag', WaveDrag(), promotes_inputs=['*'], promotes_outputs=['*'])
         # end
 
         # Sum the contributions
         adder = om.AddSubtractComp()
         adder.add_equation('CD_manta_ray',
-                        ['CD0_manta_ray', 'CDi_manta_ray'],
+                        ['CD0_manta_ray', 'CDi_manta_ray', 'CD_wave'],
                         desc='Total drag coefficient')
 
 

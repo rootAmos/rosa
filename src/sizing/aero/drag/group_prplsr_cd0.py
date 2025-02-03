@@ -19,7 +19,7 @@ from geometry.pod_wetted import PodWettedArea
 
 
 from mission.mach_number import MachNumber
-from mission.computeamos import ComputeAtmos
+from src.sizing.mission.atmos import ComputeAtmos
 
 
 

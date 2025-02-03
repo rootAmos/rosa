@@ -8,7 +8,7 @@ import sys
 import pdb
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from mission.computeamos import ComputeAtmos
+from src.sizing.mission.atmos import ComputeAtmos
 from mission.mach_number import MachNumber
 from reynolds import ReynoldsNumber
 from skin_friction import SkinFriction

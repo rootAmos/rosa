@@ -29,13 +29,13 @@ class WaveDrag(om.ExplicitComponent):
     def setup(self):
 
         # Inputs
-        self.add_input('M', val=0.0, desc='Mach number')
+        self.add_input('mach', val=0.0, desc='Mach number')
         
         # Outputs
         self.add_output('CD_wave', val=0.0, desc='Wave drag coefficient increment')
         
         # Declare partials
-        self.declare_partials('CD_wave', ['M'])
+        self.declare_partials('CD_wave', ['mach'])
         
     def compute(self, inputs, outputs):
 
@@ -45,7 +45,7 @@ class WaveDrag(om.ExplicitComponent):
         b = self.options['b']
 
         # Unpack inputs
-        M = inputs['M']
+        M = inputs['mach']
         
         # Only compute wave drag if M > M_crit
         if M > M_crit:
@@ -61,13 +61,13 @@ class WaveDrag(om.ExplicitComponent):
         b = self.options['b']
 
         # Unpack inputs
-        M = inputs['M']
+        M = inputs['mach']
         
         if M > M_crit:
             # Partial with respect to M
-            partials['CD_wave', 'M'] = (a * b * ((M/M_crit) - 1)**(b-1)) / M_crit
+            partials['CD_wave', 'mach'] = (a * b * ((M/M_crit) - 1)**(b-1)) / M_crit
         else:
-            partials['CD_wave', 'M'] = 0.0
+            partials['CD_wave', 'mach'] = 0.0
 
 if __name__ == "__main__":
     
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
-    ivc.add_output('M', val=0.5, desc='Mach number')
+    ivc.add_output('mach', val=0.5, desc='Mach number')
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     CD_wave = []
     
     for M in M_range:
-        prob.set_val('M', M)
+        prob.set_val('mach', M)
         prob.run_model()
         CD_wave.append(prob.get_val('CD_wave')[0])
     
