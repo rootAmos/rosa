@@ -21,19 +21,24 @@ class GroupCL0(om.Group):
     
     def initialize(self):
         self.options.declare('d_alpha0_d_twist', default=-0.405, types=float)
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
 
-            
+        N = self.options['N']
+
         self.add_subsystem('alpha0',
                         ZeroLiftAngle(d_alpha0_d_twist=self.options['d_alpha0_d_twist']),
                         promotes_inputs=['*'],
                         promotes_outputs=['*'])
 
 
+
         self.add_subsystem('cl0',
-                        ZeroAngleLift(),
+                        ZeroAngleLift(N=N),
                         promotes_inputs=['*'],
                         promotes_outputs=['*'])
+
 # end
 
 if __name__ == "__main__":
@@ -43,15 +48,20 @@ if __name__ == "__main__":
     # Create IndepVarComp
     ivc = om.IndepVarComp()
     
+    N = 1
+    
     # Wing parameters
     ivc.add_output('alpha0_airfoil', val=-2.0, units='deg', desc='Wing airfoil zero-lift angle')
     ivc.add_output('d_twist', val=0.0, units='rad', desc='twist angle')
-    ivc.add_output('CL_alpha_eff', val=5.0, units='1/rad', desc='Wing lift curve slope')
+
+    ivc.add_output('CL_alpha_eff', val=5.0 * np.ones(N), units='1/rad', desc='Wing lift curve slope')
+    
    
-   
+
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('CL0', GroupCL0(), promotes=['*'])
+    prob.model.add_subsystem('CL0', GroupCL0(N=N), promotes=['*'])
+
 
     # Setup problem
     prob.setup()

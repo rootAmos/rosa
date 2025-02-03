@@ -50,7 +50,7 @@ class EmpiricalAero:
         values = data[:, 2]   # coefficient values
         
         rbf = RBFInterpolator(points, values, kernel='thin_plate_spline')
-        return lambda x: rbf(np.column_stack((x[1], x[0])))  # Stack inputs correctly
+        return lambda_wx: rbf(np.column_stack((x[1], x[0])))  # Stack inputs correctly
 
     def interp_alpha_from_CL(self):
         """Create vectorized interpolation for alpha(speed, CL) using RBF."""
@@ -62,7 +62,7 @@ class EmpiricalAero:
         values = data[:, 0]       # alpha values
         
         rbf = RBFInterpolator(points, values, kernel='thin_plate_spline')
-        return lambda x: rbf(np.column_stack((x[0], x[1])))  # Stack inputs correctly
+        return lambda_wx: rbf(np.column_stack((x[0], x[1])))  # Stack inputs correctly
 
     def plot_3d_coeff(aero_data, coeff_name, interp_func):
         """Create 3D surface plot of coefficient vs speed and alpha."""

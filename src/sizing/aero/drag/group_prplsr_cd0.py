@@ -1,25 +1,24 @@
 import openmdao.api as om
-from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
-from sum_prplsr_cd0 import TotalDuctDrag, TotalPodDrag
-from skin_friction import SkinFriction
-from reynolds import ReynoldsNumber
+
 
 
 
 import os
 import sys
 import pdb
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../')))
 
 
-from geometry.duct_form_factor import DuctFormFactor
-from geometry.duct_wetted import DuctWettedArea
-from geometry.pod_form_factor import PodFormFactor
-from geometry.pod_wetted import PodWettedArea
+from src.sizing.geometry.duct_form_factor import DuctFormFactor
+from src.sizing.geometry.duct_wetted import DuctWettedArea
+from src.sizing.geometry.pod_form_factor import PodFormFactor
+from src.sizing.geometry.pod_wetted import PodWettedArea
+from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
 
 
-from mission.mach_number import MachNumber
-from src.sizing.mission.atmos import ComputeAtmos
+from src.sizing.aero.drag.sum_prplsr_cd0 import TotalDuctDrag, TotalPodDrag
+from src.sizing.aero.drag.skin_friction import SkinFriction
+from src.sizing.aero.drag.reynolds import ReynoldsNumber
 
 
 
@@ -28,30 +27,41 @@ class DuctDragGroup(om.Group):
 
     Group that computes total nacelle drag for Manta's ducted fans.
     """
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
+
+        N = self.options['N']
         
-        self.add_subsystem('duct_reynolds', ReynoldsNumber(),
+
+        self.add_subsystem('duct_reynolds', ReynoldsNumber(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
 
 
-        self.add_subsystem('duct_cf', SkinFriction(),
+
+        self.add_subsystem('duct_cf', SkinFriction(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
 
 
-        self.add_subsystem('duct_ff', DuctFormFactor(),
+
+        self.add_subsystem('duct_ff', DuctFormFactor(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
+
 
 
         self.add_subsystem('duct_wet', DuctWettedArea(),
                           promotes_inputs=['*'],promotes_outputs=['*'])
 
         # Add component to compute single n CD0
-        self.add_subsystem('duct_unit', ZeroLiftDragComponent(),
+        self.add_subsystem('duct_unit', ZeroLiftDragComponent(N=N),
                           promotes_inputs=['*'],promotes_outputs=[])
         
-        self.add_subsystem('duct_total', TotalDuctDrag(),
+
+        self.add_subsystem('duct_total', TotalDuctDrag(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
         
+
         self.connect('duct_unit.CD0', 'CD0_duct')
         self.connect('ff_duct', 'ff')
         self.connect('S_wet_duct', 'S_wet')
@@ -63,30 +73,42 @@ class PodDragGroup(om.Group):
     """
     Group that computes total pod drag for Ray's propellers.
     """
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
+
+        N = self.options['N']
+
         # Add component to compute single pod CD0
 
-        self.add_subsystem('pod_reynolds', ReynoldsNumber(),
+
+        self.add_subsystem('pod_reynolds', ReynoldsNumber(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
 
-        self.add_subsystem('pod_cf', SkinFriction(),
+
+        self.add_subsystem('pod_cf', SkinFriction(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
         
-        self.add_subsystem('pod_ff', PodFormFactor(),
+
+        self.add_subsystem('pod_ff', PodFormFactor(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
+
 
         self.add_subsystem('pod_wet', PodWettedArea(),
                           promotes_inputs=['*'],promotes_outputs=['*'])
 
-        self.add_subsystem('pod_unit', ZeroLiftDragComponent(),
+        self.add_subsystem('pod_unit', ZeroLiftDragComponent(N=N),
                           promotes_inputs=['*'],promotes_outputs=[])
+
 
         
 
         # Add component to multiply by number of pods
-        self.add_subsystem('pod_total', TotalPodDrag(),
+        self.add_subsystem('pod_total', TotalPodDrag(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
         
+
 
         # Connect unit CD0 to total calculator
         self.connect('pod_unit.CD0', 'CD0_pod') 
@@ -109,15 +131,19 @@ if __name__ == "__main__":
     # Create IndepVarComp
     ivc = om.IndepVarComp()
     
+    N  = 1
     # Duct parameters
     #ivc.add_output('alt', val=30000, units='ft', desc='Altitude')
-    ivc.add_output('u', val=50.0, units='m/s', desc='Flow speed')
+    ivc.add_output('u', val=50.0 * np.ones(N), units='m/s', desc='Flow speed')
+
     ivc.add_output('duct_l_char', val=1.0, units='m',desc='Duct Characteristic length')
-    ivc.add_output('mu', val=1.789e-5, units='Pa*s', desc='Dynamic viscosity')
-    ivc.add_output('mach', val=0.8, desc='Mach number')
-    ivc.add_output('rho', val=0.3639, units='kg/m**3', desc='Density')
+    ivc.add_output('mu', val=1.789e-5 * np.ones(N), units='Pa*s', desc='Dynamic viscosity')
+    ivc.add_output('mach', val=0.8 * np.ones(N), desc='Mach number')    
+
+    ivc.add_output('rho', val=0.3639 * np.ones(N), units='kg/m**3', desc='Density')
 
     ivc.add_output('c_duct', val=3.0, units='m', desc='Nacelle length')
+
     ivc.add_output('od_duct', val=2.0, units='m', desc='Duct outer diameter')
     ivc.add_output('id_duct', val=1.0, units='m', desc='Duct inner diameter')
     ivc.add_output('Q_duct', val=1.0, desc='Duct interference factor')
@@ -127,7 +153,8 @@ if __name__ == "__main__":
     
     # Add subsystems to model
     prob_duct.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob_duct.model.add_subsystem('duct_drag', DuctDragGroup(), promotes=['*'])
+    prob_duct.model.add_subsystem('duct_drag', DuctDragGroup(N=N), promotes=['*'])
+
 
     # Make Connections
     prob_duct.model.connect('duct_l_char', 'l_char')

@@ -12,20 +12,28 @@ class MachNumber(om.ExplicitComponent):
                       desc='Ratio of specific heats')
         self.options.declare('R', default=287.05,
                       desc='Gas constant')
+        self.options.declare('N', default=1,
+                      desc='Number of nodes')
         
+
     def setup(self):
         # Inputs
 
-        self.add_input('u', val=100.0, units='m/s',
+        N = self.options['N']
+
+        self.add_input('u', val=1.0 * np.ones(N), units='m/s',
                       desc='Flow velocity')
-        self.add_input('temp', val=288.15, units='K',
+        self.add_input('temp', val=1.0 * np.ones(N), units='K',
                       desc='Static temperature')
+
+
 
         
         # Outputs
-        self.add_output('mach', val=0.0,
+        self.add_output('mach', val=1.0 * np.ones(N),
                        desc='Mach number')
         
+
         # Declare partials
         self.declare_partials('mach', ['u', 'temp'])
         
@@ -52,6 +60,8 @@ class MachNumber(om.ExplicitComponent):
         V = inputs['u']
         T = inputs['temp']
 
+        N = self.options['N']
+
         # Unpack constants
         gamma = self.options['gamma']
         R = self.options['R']
@@ -60,8 +70,8 @@ class MachNumber(om.ExplicitComponent):
         a = np.sqrt(gamma * R * T)
 
         
-        partials['mach', 'u'] = 1 / a
-        partials['mach', 'temp'] = -V / (2 * a * T)
+        partials['mach', 'u'] = np.eye(N) * 1 / a
+        partials['mach', 'temp'] = np.eye(N) * -V / (2 * a * T)
 
 
 if __name__ == "__main__":

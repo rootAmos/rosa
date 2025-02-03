@@ -19,7 +19,7 @@ class ClimbVectors(om.ExplicitComponent):
         
         # Inputs
         self.add_input('u_eas', val=80.0, units='m/s')
-        self.add_input('gamma', val=5.0, units='rad')
+        self.add_input('gamma', val=5.0 * np.ones(N), units='rad')
         self.add_input('rho', val=1.225*np.ones(N), units='kg/m**3')
         
         # Outputs
@@ -53,7 +53,7 @@ class ClimbVectors(om.ExplicitComponent):
         partials['u', 'rho'] = np.eye(N) * -0.5 * u_eas * np.sqrt(rho0)/rho**1.5
         
         partials['zdot', 'u_eas'] = np.sin(gamma) * np.sqrt(rho0/rho)
-        partials['zdot', 'gamma'] = u_eas * np.sqrt(rho0/rho) * np.cos(gamma)
+        partials['zdot', 'gamma'] = np.eye(N) * u_eas * np.sqrt(rho0/rho) * np.cos(gamma)
         partials['zdot', 'rho'] = np.eye(N) * -0.5 * u_eas * np.sqrt(rho0)/rho**1.5 * np.sin(gamma)
 
 class ClimbDuration(om.ExplicitComponent):
@@ -67,12 +67,12 @@ class ClimbDuration(om.ExplicitComponent):
         
         # Inputs
         self.add_input('zdot', val=np.ones(N), units='m/s')
-        self.add_input('duration', val=600.0, units='s')
+        self.add_input('duration', val=1, units='s')
         self.add_input('z', val=np.ones(N), units='m')
         
         # Outputs
-        self.add_output('z1_calc', val=0.0, units='m')
-        self.add_output('z1_margin', val=0.0, units='m')
+        self.add_output('z1_calc', val=1.0, units='m')
+        self.add_output('z1_margin', val=1.0, units='m')
         
         self.declare_partials('*', '*')
         
@@ -129,10 +129,10 @@ class ClimbProfile(om.ExplicitComponent):
         N = self.options['N']
         
         # Inputs
-        self.add_input('duration', val=600.0, units='s')
+        self.add_input('duration', val=1.0, units='s')
         self.add_input('u', val=np.ones(N), units='m/s')
         self.add_input('zdot', val=np.ones(N), units='m/s')
-        self.add_input('rho', val=1.225*np.ones(N), units='kg/m**3')
+        self.add_input('rho', val=1*np.ones(N), units='kg/m**3')
         
         # Outputs
         self.add_output('time', val=np.zeros(N), units='s')
@@ -177,34 +177,39 @@ class ClimbProfile(om.ExplicitComponent):
         partials['udot', 'u'] += np.diag(diag_upper, k=1)
 
 class EndPoints(om.ExplicitComponent):
-    """Extracts initial and final values from altitude array"""
+    """Generates altitude array from initial and final values"""
     
     def initialize(self):
         self.options.declare('N', desc='Number of nodes')
         
     def setup(self):
-        # Input
-        self.add_input('z', val = np.ones(self.options['N']), units='m', desc='Altitude array')
-
+        N = self.options['N']
+        
+        # Inputs
+        self.add_input('z0', val=1.0, units='m', desc='Initial altitude')
+        self.add_input('z1', val=1.0, units='m', desc='Final altitude')
         
         # Outputs
-        self.add_output('z0', val=0.0, units='m', desc='Initial altitude')
-        self.add_output('z1', val=0.0, units='m', desc='Final altitude')
+        self.add_output('z', val=np.ones(N), units='m', desc='Altitude array')
         
         # Declare partials
-        self.declare_partials('*', '*')
+        self.declare_partials('z', ['z0', 'z1'])
         
     def compute(self, inputs, outputs):
-
-        z = inputs['z']
-        outputs['z0'] = z[0]
-        outputs['z1'] = z[-1]
+        N = self.options['N']
+        z0 = inputs['z0']
+        z1 = inputs['z1']
+        
+        outputs['z'] = np.linspace(z0, z1, N)
         
     def compute_partials(self, inputs, partials):
-        N = len(inputs['z'])
+        N = self.options['N']
         
-        partials['z0', 'z'] = np.zeros(N)        
-        partials['z1', 'z'] = np.zeros(N)
+        # Partial of z wrt z0 (decreases linearly from 1 to 0)
+        partials['z', 'z0'] = np.linspace(1, 0, N)
+        
+        # Partial of z wrt z1 (increases linearly from 0 to 1) 
+        partials['z', 'z1'] = np.linspace(0, 1, N)
 
 class ClimbGroup(om.Group):
     """Group for computing climb phase"""
@@ -215,13 +220,14 @@ class ClimbGroup(om.Group):
     def setup(self):
         N = self.options['N']
 
-        # Add atmospheric model
-        self.add_subsystem('atmos', ComputeAtmos(N=N),
-                          promotes_inputs=['alt'],
-                          promotes_outputs=['*'])
-        
+        # Generate altitude profile first
         self.add_subsystem('end_points',
                           EndPoints(N=N),
+                          promotes_inputs=['z0', 'z1'],
+                          promotes_outputs=['z'])
+
+        # Add atmospheric model
+        self.add_subsystem('atmos', ComputeAtmos(N=N),
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
         
@@ -230,7 +236,6 @@ class ClimbGroup(om.Group):
                           ClimbVectors(N=N),
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
-
         
         # Add climb profile computation
         self.add_subsystem('profile',
@@ -244,6 +249,9 @@ class ClimbGroup(om.Group):
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
 
+        # Connect z to altitude input for atmosphere
+        self.connect('z', 'alt')
+
 if __name__ == "__main__":
     # Create problem
     prob = om.Problem()
@@ -252,18 +260,23 @@ if __name__ == "__main__":
     ivc = om.IndepVarComp()
     
     N = 50  # number of nodes
-    z = np.linspace(0, 10000, N)
     
     # Add inputs to ivc
-    ivc.add_output('u_eas', val=250.0, units='kn')
-    ivc.add_output('gamma', val=5.0, units='deg')
-    ivc.add_output('alt', val=z, units='m')
+    ivc.add_output('u_eas', val=100.0, units='m/s')
+    ivc.add_output('gamma', val=4.0 * np.ones(N), units='deg')
     ivc.add_output('duration', val=600.0, units='s')
-    ivc.add_output('z', val=z, units='m')  # Target altitude
+    #ivc.add_output('rho', val=np.linspace(1.225, 0.4135, N), units='kg/m**3')
+    ivc.add_output('z0', val=1500.0, units='ft')
+    ivc.add_output('z1', val=30000.0, units='ft')
     
+
+
+
+
     # Add IVC and climb group to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
     prob.model.add_subsystem('climb', ClimbGroup(N=N), promotes=['*'])
+
     
     # Setup optimization
     prob.driver = om.pyOptSparseDriver()
@@ -327,4 +340,4 @@ if __name__ == "__main__":
     plt.show()
     
     # Check partials
-    prob.check_partials(compact_print=True)
+    #prob.check_partials(compact_print=True)

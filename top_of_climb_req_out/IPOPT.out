@@ -1,0 +1,90 @@
+
+List of user-set options:
+
+                                    Name   Value                used
+                        file_print_level = 5                     yes
+                   hessian_approximation = limited-memory        yes
+                           linear_solver = mumps                 yes
+                      nlp_scaling_method = user-scaling          yes
+                             output_file = C:\Users\alexa\Documents\Chasing Amber\rosa\top_of_climb_req_out/IPOPT.out  yes
+                             print_level = 0                     yes
+                      print_user_options = yes                   yes
+                                      sb = yes                   yes
+This is Ipopt version 3.14.17, running with linear solver MUMPS 5.7.3.
+
+Number of nonzeros in equality constraint Jacobian...:        0
+Number of nonzeros in inequality constraint Jacobian.:        1
+Number of nonzeros in Lagrangian Hessian.............:        0
+
+Total number of variables............................:        1
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:        1
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:        0
+Total number of inequality constraints...............:        1
+        inequality constraints with only lower bounds:        0
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  4.4140919e+03 0.00e+00 7.88e+00   0.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  4.3519905e+03 0.00e+00 7.88e+00   1.1 7.88e+00    -  9.99e-01 1.00e+00f  1
+   2  4.2898462e+03 0.00e+00 7.88e+00  -0.8 7.88e+00    -  1.00e+00 1.00e+00f  1
+   3  4.2277016e+03 0.00e+00 7.88e+00  -2.6 7.88e+00    -  1.00e+00 1.00e+00f  1
+   4  4.1655571e+03 0.00e+00 7.88e+00  -4.5 7.88e+00    -  1.00e+00 1.00e+00f  1
+   5  1.1744621e+03 0.00e+00 7.88e+00  -6.3 8.25e+10    -  6.38e-09 8.21e-09f  2
+   6  1.6054267e+02 0.00e+00 7.88e+00  -4.7 3.39e+02    -  1.00e+00 5.00e-01f  2
+   7  6.3329299e+00 0.00e+00 7.88e+00  -5.8 8.47e+01    -  1.00e+00 2.50e-01f  3
+Cholesky factorization failed for LBFGS update! Skipping update.
+   8  4.0967952e+00 0.00e+00 7.88e+00  -7.4 1.06e+01    -  1.00e+00 1.25e-01f  4
+   9  1.1180673e+00 0.00e+00 7.88e+00  -9.0 1.06e+01    -  1.00e+00 6.25e-02f  5
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  1.8564829e-01 0.00e+00 7.88e+00 -10.8 3.31e-01    -  1.00e+00 5.00e-01f  2
+  11  1.4028062e-01 0.00e+00 7.88e+00 -11.0 8.27e-02    -  1.00e+00 5.00e-01f  2
+  12  2.2683832e-02 0.00e+00 7.88e+00 -11.0 2.07e-02    -  1.00e+00 1.00e+00f  1
+  13  1.8057282e-02 0.00e+00 7.88e+00 -11.0 1.03e-02    -  1.00e+00 5.00e-01f  2
+  14  2.3132753e-03 0.00e+00 7.88e+00 -11.0 2.58e-03    -  1.00e+00 1.00e+00f  1
+  15  2.3304432e-04 0.00e+00 7.88e+00 -11.0 1.29e-03    -  1.00e+00 2.50e-01f  3
+  16  8.5245629e-05 0.00e+00 7.88e+00 -11.0 1.62e-04    -  1.00e+00 2.50e-01f  3
+  17  7.3899344e-05 0.00e+00 7.88e+00 -11.0 2.02e-05    -  1.00e+00 1.00e+00f  1
+  18  5.6731424e-06 0.00e+00 7.88e+00 -11.0 1.01e-05    -  1.00e+00 1.00e+00f  1
+  19  4.2734173e-06 0.00e+00 7.88e+00 -11.0 5.05e-06    -  1.00e+00 2.50e-01f  3
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  20  6.9986345e-07 0.00e+00 7.88e+00 -11.0 6.31e-07    -  1.00e+00 1.00e+00f  1
+  21  5.4345583e-07 0.00e+00 7.88e+00 -11.0 3.15e-07    -  1.00e+00 5.00e-01f  2
+  22  7.8205630e-08 0.00e+00 7.88e+00 -11.0 7.89e-08    -  1.00e+00 1.00e+00f  1
+  23  7.7214281e-08 0.00e+00 7.88e+00 -11.0 3.94e-08    -  1.00e+00 5.00e-01f  2
+  24  4.9476512e-10 0.00e+00 7.88e+00 -11.0 9.86e-09    -  1.00e+00 1.00e+00f  1
+  25  1.1277734e-10 0.00e+00 7.88e+00 -11.0 4.93e-09    -  1.00e+00 1.56e-02f  7
+  26  4.1836756e-11 0.00e+00 7.88e+00 -11.0 3.85e-11    -  1.00e+00 5.00e-01f  2
+  27  3.4560799e-11 0.00e+00 7.88e+00 -11.0 9.66e-12    -  1.00e+00 1.00e+00f  1
+  28  1.8189894e-12 0.00e+00 7.88e+00 -11.0 4.77e-12    -  1.00e+00 1.00e+00f  1
+  29  1.8189894e-11 0.00e+00 7.88e+00 -11.0 2.39e-12    -  1.00e+00 1.00e+00   0
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  30  5.4569682e-12 0.00e+00 7.88e+00 -11.0 1.25e-12    -  1.00e+00 1.00e+00T  0
+  31  1.8189894e-12 0.00e+00 7.88e+00  -9.0 8.89e-12    -  1.00e+00 1.25e-01f  4
+  32  0.0000000e+00 0.00e+00 7.88e+00  -9.0 5.68e-13    -  1.00e+00 1.00e+00   0
+Cholesky factorization failed for LBFGS update! Skipping update.
+  33  1.0913936e-11 0.00e+00 7.88e+00  -9.0 8.28e-13  -2.5 1.00e+00 1.00e+00T  0
+
+Number of Iterations....: 33
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.0913936421275139e-11    1.0913936421275139e-11
+Dual infeasibility......:   7.8831802063141900e+00    7.8831802063141900e+00
+Constraint violation....:   0.0000000000000000e+00    0.0000000000000000e+00
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.0909090909090910e-10    9.0909090909090910e-10
+Overall NLP error.......:   7.8831802063141900e+00    7.8831802063141900e+00
+
+
+Number of objective function evaluations             = 130
+Number of objective gradient evaluations             = 34
+Number of equality constraint evaluations            = 0
+Number of inequality constraint evaluations          = 130
+Number of equality constraint Jacobian evaluations   = 0
+Number of inequality constraint Jacobian evaluations = 34
+Number of Lagrangian Hessian evaluations             = 0
+Total seconds in IPOPT                               = 0.731
+
+EXIT: Search Direction is becoming Too Small.

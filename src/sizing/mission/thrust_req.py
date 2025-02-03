@@ -8,19 +8,23 @@ class ThrustReq(om.ExplicitComponent):
 
     def initialize(self):
         self.options.declare('g', default=9.806, desc='Acceleration due to gravity')
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
 
+        N = self.options['N']
+
         # Inputs
 
-        self.add_input('w_mto',val=1.0, units='N', desc='Maximum takeoff weight')
-        self.add_input('drag', val=1.0, units='N', desc='Total drag')
-        self.add_input('gamma', val=0.0, units='rad', desc='Flight path angle (0 for cruise)')
-        self.add_input('udot', val=0.0, units='m/s**2', desc='Acceleration in the x-direction of the body axis')
+        self.add_input('w_mto',val=1.0 , units='N', desc='Maximum takeoff weight')
+        self.add_input('drag', val=1.0 * np.ones(N), units='N', desc='Total drag')
+        self.add_input('gamma', val=1.0 * np.ones(N), units='rad', desc='Flight path angle (0 for cruise)')
+
+        self.add_input('udot', val=1.0 * np.ones(N), units='m/s**2', desc='Acceleration in the x-direction of the body axis')
 
 
         # Outputs
-        self.add_output('thrust_total', val=1.0, units='N', desc='Required thrust')
+        self.add_output('thrust_total', val=1.0 * np.ones(N), units='N', desc='Required thrust')
 
 
     def setup_partials(self):
@@ -53,15 +57,16 @@ class ThrustReq(om.ExplicitComponent):
         udot = inputs['udot']
 
         g = self.options['g'] # m/s**2
+        N = self.options['N']
 
         # Parials with respect to thrust_total
         partials['thrust_total', 'w_mto'] = np.sin(gamma) + udot/g
 
-        partials['thrust_total', 'gamma'] = w_mto*np.cos(gamma)
+        partials['thrust_total', 'gamma'] = np.eye(N) * w_mto*np.cos(gamma)
 
-        partials['thrust_total', 'udot'] = w_mto/g
+        partials['thrust_total', 'udot'] = np.eye(N) * w_mto/g
 
-        partials['thrust_total', 'drag'] = 1.0
+        partials['thrust_total', 'drag'] = np.eye(N) * 1.0
 
 
 

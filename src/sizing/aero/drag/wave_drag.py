@@ -25,15 +25,20 @@ class WaveDrag(om.ExplicitComponent):
         self.options.declare('M_crit', default=0.88, desc='Critical Mach number')
         self.options.declare('a', default=0.1498, desc='Wave drag coefficient a')
         self.options.declare('b', default=3.20, desc='Wave drag coefficient b')
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
 
+        N = self.options['N']
+
         # Inputs
-        self.add_input('mach', val=0.0, desc='Mach number')
+        self.add_input('mach', val=1.0 * np.ones(N), desc='Mach number')
         
         # Outputs
-        self.add_output('CD_wave', val=0.0, desc='Wave drag coefficient increment')
+        self.add_output('CD_wave', val=1.0 * np.ones(N), desc='Wave drag coefficient increment')
+
         
+
         # Declare partials
         self.declare_partials('CD_wave', ['mach'])
         
@@ -48,12 +53,11 @@ class WaveDrag(om.ExplicitComponent):
         M = inputs['mach']
         
         # Only compute wave drag if M > M_crit
-        if M > M_crit:
-            outputs['CD_wave'] = a * ((M/M_crit) - 1)**b
-        else:
-            outputs['CD_wave'] = 0.0
+        outputs['CD_wave'] = np.where(M > M_crit, a * ((M/M_crit) - 1)**b, 0.0)
         
     def compute_partials(self, inputs, partials):
+
+        N = self.options['N']
 
         # Unpack options
         M_crit = self.options['M_crit']
@@ -62,12 +66,10 @@ class WaveDrag(om.ExplicitComponent):
 
         # Unpack inputs
         M = inputs['mach']
-        
-        if M > M_crit:
-            # Partial with respect to M
-            partials['CD_wave', 'mach'] = (a * b * ((M/M_crit) - 1)**(b-1)) / M_crit
-        else:
-            partials['CD_wave', 'mach'] = 0.0
+    
+        partials['CD_wave', 'mach'] = np.where(M > M_crit, np.eye(N) * (a * b * ((M/M_crit) - 1)**(b-1)) / M_crit, np.eye(N) * 0.0)
+
+
 
 if __name__ == "__main__":
     

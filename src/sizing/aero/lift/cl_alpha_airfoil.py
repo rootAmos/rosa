@@ -19,16 +19,26 @@ class LiftCurveSlope3D(om.ExplicitComponent):
         CL_alpha : float
             Wing lift curve slope [1/rad]
     """
+
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
+
+        N = self.options['N']
+
         # Inputs
-        self.add_input('aspect_ratio', val=0.0, desc='Aspect ratio')
-        self.add_input('mach', val=0.0, desc='mach number')
-        self.add_input('phi_50', val=0.0, units='rad', desc='50% chord sweep angle')
-        self.add_input('cl_alpha_airfoil', val=2*np.pi, units='1/rad', desc='Airfoil lift curve slope')
+        self.add_input('aspect_ratio', val=1.0 , desc='Aspect ratio')
+        self.add_input('mach', val=1.0 * np.ones(N), desc='mach number')
+        self.add_input('phi_50', val=1.0 , units='rad', desc='50% chord sweep angle')
+
+
+
+        self.add_input('cl_alpha_airfoil', val=1, units='1/rad', desc='Airfoil lift curve slope')
+
         
         # Outputs
-        self.add_output('CL_alpha', val=0.0, units='1/rad', desc='Wing lift curve slope')
+        self.add_output('CL_alpha', val=1.0 * np.ones(N), units='1/rad', desc='Wing lift curve slope')
         
         # Declare partials
         self.declare_partials('CL_alpha', ['aspect_ratio', 'mach', 'phi_50', 'cl_alpha_airfoil'])
@@ -53,6 +63,8 @@ class LiftCurveSlope3D(om.ExplicitComponent):
         outputs['CL_alpha'] = term1/term2
         
     def compute_partials(self, inputs, partials):
+
+        N = self.options['N']
         aspect_ratio = inputs['aspect_ratio']
         mach = inputs['mach']
         phi_50 = inputs['phi_50']
@@ -61,7 +73,8 @@ class LiftCurveSlope3D(om.ExplicitComponent):
 
         partials['CL_alpha', 'aspect_ratio'] = 6.2832/(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6) + (39.4784*aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/(cl_alpha_airfoil**2*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)
 
-        partials['CL_alpha', 'mach'] = -(39.4784*aspect_ratio**3*mach*np.tan(phi_50)**2)/(cl_alpha_airfoil**2*(mach**2 - 1)**2*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)    
+        partials['CL_alpha', 'mach'] = np.eye(N)*-(39.4784*aspect_ratio**3*mach*np.tan(phi_50)**2)/(cl_alpha_airfoil**2*(mach**2 - 1)**2*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)    
+
 
         partials['CL_alpha', 'phi_50'] = (39.4784*aspect_ratio**3*np.tan(phi_50)*(np.tan(phi_50)**2 + 1))/(cl_alpha_airfoil**2*(mach**2 - 1)*(6.2832*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**(1/2) + 6)**2*(-(aspect_ratio**2*(np.tan(phi_50)**2/(mach**2 - 1) - 1))/cl_alpha_airfoil**2)**0.5000)
 
@@ -70,23 +83,27 @@ class LiftCurveSlope3D(om.ExplicitComponent):
 if __name__ == "__main__":
     # Create problem instance
     prob = om.Problem()
+
+    N = 1
     
     # Create IndepVarComp for inputs
     ivc = om.IndepVarComp()
     ivc.add_output('aspect_ratio', val=8.0, desc='Aspect ratio')
-    ivc.add_output('mach', val=0.3, desc='Mach number')
+    ivc.add_output('mach', val=0.3 * np.ones(N), desc='Mach number')
+
     ivc.add_output('phi_50', val=np.radians(5.0), units='rad', desc='50% chord sweep angle')
     ivc.add_output('cl_alpha_airfoil', val=2*np.pi, units='1/rad', desc='Airfoil lift curve slope')
     
     # Add IVC and LiftCurveSlope component to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('wing', LiftCurveSlope3D(), promotes=['*'])
+    prob.model.add_subsystem('wing', LiftCurveSlope3D(N=N), promotes=['*'])
     
     # Setup and run problem
     prob.setup()
     prob.run_model()
     
     # Print results
+
 
     print('\nInputs:')
     print(f'  Aspect Ratio:          {prob.get_val("aspect_ratio")}')

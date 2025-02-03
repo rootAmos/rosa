@@ -18,12 +18,14 @@ class PodWettedArea(om.ExplicitComponent):
     
     def setup(self):
         # Inputs
-        self.add_input('l_pod', val=0.0, units='m', desc='Pod length')
-        self.add_input('d_pod', val=0.0, units='m', desc='Pod diameter')
+        self.add_input('l_pod', val=1.0, units='m', desc='Pod length')
+        self.add_input('d_pod', val=1.0, units='m', desc='Pod diameter')
         
+
         # Output
-        self.add_output('S_wet_pod', val=0.0, units='m**2', desc='Pod wetted area')
+        self.add_output('S_wet_pod', val=1.0, units='m**2', desc='Pod wetted area')
         
+
         # Declare partials
         self.declare_partials('S_wet_pod', ['l_pod', 'd_pod'])
         

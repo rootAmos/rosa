@@ -19,21 +19,31 @@ class ReynoldsNumber(om.ExplicitComponent):
         Re : float
             Reynolds number [-]
     """
-    
+
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
+
+
     def setup(self):
         # Inputs
-        self.add_input('rho', val=1.0, units='kg/m**3', 
+
+        N = self.options['N']
+
+
+        self.add_input('rho', val=1.0 * np.ones(N), units='kg/m**3', 
                       desc='Fluid density')
-        self.add_input('u', val=0.0, units='m/s', 
+        self.add_input('u', val=1.0 * np.ones(N), units='m/s', 
                       desc='Flow speed')
-        self.add_input('l_char', val=1.0, units='m', 
+
+        self.add_input('l_char', val=1.0 , units='m', 
                       desc='Characteristic length')
-        self.add_input('mu', val=1.789e-5, units='Pa*s', 
+        self.add_input('mu', val=1 * np.ones(N), units='Pa*s', 
                       desc='Dynamic viscosity')
         
 
+
         # Outputs
-        self.add_output('Re', val=0.0, desc='Reynolds number')
+        self.add_output('Re', val=0.0 * np.ones(N), desc='Reynolds number')
         
         # Declare partials
         self.declare_partials('Re', ['rho', 'u', 'l_char', 'mu'])
@@ -58,8 +68,10 @@ class ReynoldsNumber(om.ExplicitComponent):
         l_char = inputs['l_char']
         mu = inputs['mu']
 
+        N = self.options['N']
+
         # Partial derivatives
-        partials['Re', 'rho'] = (u * l_char) / mu
-        partials['Re', 'u'] = (rho * l_char) / mu
+        partials['Re', 'rho'] = np.eye(N) * (u * l_char) / mu
+        partials['Re', 'u'] = np.eye(N) * (rho * l_char) / mu
         partials['Re', 'l_char'] = (rho * u) / mu
-        partials['Re', 'mu'] = -(rho * u * l_char) / (mu**2) 
+        partials['Re', 'mu'] = np.eye(N) * -(rho * u * l_char) / (mu**2) 

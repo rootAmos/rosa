@@ -32,28 +32,35 @@ class CoupledCLAlphaRay(om.ExplicitComponent):
 
     def initialize(self):
         self.options.declare('manta', default=0, desc='Flag for Manta configuration')
+        self.options.declare('N', default=1, desc='Number of nodes')
     
 
     def setup(self):
         # Inputs
 
-        self.add_input('CL_alpha', val=0.0, units='1/rad',
+        N = self.options['N']
+
+        self.add_input('CL_alpha', val=1.0 * np.ones(N), units='1/rad',
                       desc='Ray lift curve slope')
+
 
         
         if self.options['manta']:
-            self.add_input('S_ray', val=0.0, units='m**2',
+            self.add_input('S_ray', val=1.0, units='m**2',
                           desc='Ray reference area')
-            self.add_input('S_manta', val=0.0, units='m**2',
+            self.add_input('S_manta', val=1.0, units='m**2',
                           desc='Manta reference area')
-            self.add_input('d_eps_ray_d_alpha', val=0.0,
+
+            self.add_input('d_eps_ray_d_alpha', val=1.0,
                       desc='Ray downwash derivative')
         # end
 
+
         
         # Outputs
-        self.add_output('CL_alpha_eff', val=0.0, units='1/rad',
+        self.add_output('CL_alpha_eff', val=1.0 * np.ones(N), units='1/rad',
                        desc='Effective canard lift curve slope')
+
 
         
         # Partials
@@ -74,6 +81,8 @@ class CoupledCLAlphaRay(om.ExplicitComponent):
 
         
     def compute_partials(self, inputs, partials):
+
+        N = self.options['N']
         d_eps_ray_d_alpha = inputs['d_eps_ray_d_alpha']
         CL_alpha = inputs['CL_alpha']
 
@@ -81,14 +90,15 @@ class CoupledCLAlphaRay(om.ExplicitComponent):
             S_ray = inputs['S_ray']
             S_manta = inputs['S_manta']
             area_ratio = S_ray / S_manta
-            partials['CL_alpha_eff', 'CL_alpha'] = (1 + d_eps_ray_d_alpha) * area_ratio
+            partials['CL_alpha_eff', 'CL_alpha'] = np.eye(N)*(1 + d_eps_ray_d_alpha) * area_ratio
             partials['CL_alpha_eff', 'd_eps_ray_d_alpha'] = CL_alpha  * area_ratio
             partials['CL_alpha_eff', 'S_ray'] = CL_alpha * (1 + d_eps_ray_d_alpha) / S_manta
             partials['CL_alpha_eff', 'S_manta'] = -CL_alpha * (1 + d_eps_ray_d_alpha) * S_ray / S_manta**2
         else:
 
 
-            partials['CL_alpha_eff', 'CL_alpha'] = 1
+            partials['CL_alpha_eff', 'CL_alpha'] = np.eye(N)
+
 
 
 class GroupCLAlphaRay(om.Group):
@@ -99,20 +109,25 @@ class GroupCLAlphaRay(om.Group):
 
     def initialize(self):
         self.options.declare('manta', default=0, desc='Flag for Manta configuration')
+        self.options.declare('N', default=1, desc='Number of nodes')
 
     def setup(self):
 
+        N = self.options['N']
+
 
         self.add_subsystem('cl_alpha_3d',
-                            LiftCurveSlope3D(),
+                            LiftCurveSlope3D(N=N),
                             promotes_inputs=['*'],
                             promotes_outputs=['*'])
+
         
         # Ray lift curve slope
         self.add_subsystem('cpld_cl_alpha',
-                        CoupledCLAlphaRay(manta=self.options['manta']),
+                        CoupledCLAlphaRay(manta=self.options['manta'], N=N),
                         promotes_inputs=['*'],
                         promotes_outputs=['*'])
+
 
     # end
 
@@ -124,10 +139,13 @@ if __name__ == "__main__":
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
+
+    N = 1
     
     # Ray parameters
-    ivc.add_output('mach', val=0.78, desc='Ray Mach number')
+    ivc.add_output('mach', val=0.78 * np.ones(N), desc='Ray Mach number')
     ivc.add_output('phi_50', val=4.0, units='deg', desc='Ray 50% chord sweep angle')
+
     ivc.add_output('cl_alpha_airfoil', val=2*np.pi, units='1/rad', desc='Ray airfoil lift curve slope')
 
     ivc.add_output('aspect_ratio', val=10.0, desc='Ray aspect ratio')
@@ -141,7 +159,8 @@ if __name__ == "__main__":
 
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('cl_alpha_ray', GroupCLAlphaRay(manta=1), promotes=['*'])
+    prob.model.add_subsystem('cl_alpha_ray', GroupCLAlphaRay(manta=1, N=N), promotes=['*'])
+
 
 
 

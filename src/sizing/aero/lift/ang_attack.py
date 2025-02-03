@@ -25,24 +25,37 @@ class AngleOfAttack(om.ExplicitComponent):
         alpha : float
             Required angle of attack [rad]
     """
-    
+
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
+
+        
+
     def setup(self):
         # Inputs
-        self.add_input('lift', val=0.0, units='N',
+
+        N = self.options['N']
+
+        self.add_input('lift', val=1.0 * np.ones(N), units='N',
                       desc='Required lift force')
-        self.add_input('rho', val=1.225, units='kg/m**3',
+
+        self.add_input('rho', val=1.0 * np.ones(N), units='kg/m**3',
                       desc='Air density')
-        self.add_input('u', val=100.0, units='m/s',
+        self.add_input('u', val=1.0 * np.ones(N), units='m/s',
                       desc='Airspeed')
-        self.add_input('S_ref', val=120.0, units='m**2',
+
+
+        self.add_input('S_ref', val=1.0, units='m**2',
                       desc='Reference area')
-        self.add_input('CL0', val=0.0,
+        self.add_input('CL0', val=1.0 * np.ones(N),
                       desc='Zero-angle lift coefficient')
-        self.add_input('CL_alpha', val=5.5, units='1/rad',
+
+        self.add_input('CL_alpha', val=1 * np.ones(N), units='1/rad',
                       desc='Lift curve slope')
         
+
         # Outputs
-        self.add_output('alpha', val=0.0, units='rad',
+        self.add_output('alpha', val=   1.0 * np.ones(N), units='rad',
                        desc='Required angle of attack')
         
         # Declare partials
@@ -73,43 +86,50 @@ class AngleOfAttack(om.ExplicitComponent):
         S_ref = inputs['S_ref']
         CL0 = inputs['CL0']
         CL_alpha = inputs['CL_alpha']
+
+        N = self.options['N']
         
-        partials['alpha', 'rho'] = -(2*lift)/(CL_alpha*S_ref*rho**2*u**2)
+        partials['alpha', 'rho'] = np.eye(N)*-(2*lift)/(CL_alpha*S_ref*rho**2*u**2)
+
 
         partials['alpha', 'S_ref'] = -(2*lift)/(CL_alpha*S_ref**2*rho*u**2)
 
-        partials['alpha', 'u'] = -(4*lift)/(CL_alpha*S_ref*rho*u**3)
+        partials['alpha', 'u'] = np.eye(N)*-(4*lift)/(CL_alpha*S_ref*rho*u**3)
 
         partials['alpha', 'CL0'] = -1/CL_alpha
 
         partials['alpha', 'CL_alpha'] = (CL0 - (2*lift)/(S_ref*rho*u**2))/CL_alpha**2
 
-        partials['alpha', 'lift'] = 2/(CL_alpha*S_ref*rho*u**2)
+        partials['alpha', 'lift'] = np.eye(N)*2/(CL_alpha*S_ref*rho*u**2)
 
 
 
 if __name__ == "__main__":
     # Create problem instance
     prob = om.Problem()
+
+    N = 1
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
-    ivc.add_output('lift', val=100000.0, units='N', desc='Required lift force')
-    ivc.add_output('rho', val=1.225, units='kg/m**3', desc='Air density')
-    ivc.add_output('V', val=100.0, units='m/s', desc='Airspeed')
+    ivc.add_output('lift', val=100000.0 * np.ones(N), units='N', desc='Required lift force')
+    ivc.add_output('rho', val=1.225 * np.ones(N), units='kg/m**3', desc='Air density')
+    ivc.add_output('u', val=100.0 * np.ones(N), units='m/s', desc='Airspeed')
+
     ivc.add_output('S_ref', val=60.0, units='m**2', desc='Reference area')
     ivc.add_output('CL0', val=0.2, desc='Zero-angle lift coefficient')
     ivc.add_output('CL_alpha', val=5.5, units='1/rad', desc='Lift curve slope')
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('alpha', AngleOfAttack(), promotes=['*'])
+    prob.model.add_subsystem('alpha', AngleOfAttack(N=N), promotes=['*'])
     
     # S_refetup problem
     prob.setup()
     
     # Run baseline case
     prob.run_model()
+
 
     
     print('\nBaseline Configuration:')
@@ -148,7 +168,7 @@ if __name__ == "__main__":
     V_range = np.linspace(50, 150, 50)
     alpha_vals = []
     for V in V_range:
-        prob.set_val('V', V)
+        prob.set_val('u', V)
         prob.run_model()
         alpha_vals.append(np.degrees(prob.get_val('alpha')[0]))
     
@@ -160,7 +180,7 @@ if __name__ == "__main__":
     plt.title('Effect of Velocity')
     
     # CL0 sweep
-    prob.set_val('V', 100)  # Reset to baseline
+    prob.set_val('u', 100)  # Reset to baseline
     CL0_range = np.linspace(0.0, 0.4, 50)
     alpha_vals = []
     for CL0 in CL0_range:

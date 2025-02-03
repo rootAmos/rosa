@@ -1,15 +1,13 @@
 import openmdao.api as om
-from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
-from misc_cd0 import LeakageDrag, ExcrescenceDrag
-from group_prplsr_cd0 import  PodDragGroup
+
 
 import os
 import sys
 import pdb
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from group_cd0_manta import GroupCD0Manta
-from group_cd0_ray import GroupCD0Ray
+from src.sizing.aero.drag.group_cd0_manta import GroupCD0Manta
+from src.sizing.aero.drag.group_cd0_ray import GroupCD0Ray
 
 
 class GroupCD0MantaRay(om.Group):
@@ -17,23 +15,29 @@ class GroupCD0MantaRay(om.Group):
     Group that combines zero-lift drag components for Ray configuration.
     """
     def initialize(self):
-        pass
+        self.options.declare('N', default=1, desc='Number of nodes')
 
     def setup(self):
         
-        self.add_subsystem('manta', GroupCD0Manta(),
+        N = self.options['N']
+
+        self.add_subsystem('manta', GroupCD0Manta(N=N),
                           promotes_inputs=['mach','rho','u','mu','S_ref'],
                           promotes_outputs=[])
-        
-        self.add_subsystem('ray', GroupCD0Ray(),
+
+
+        self.add_subsystem('ray', GroupCD0Ray(N=N),
                           promotes_inputs=['mach','rho','u','mu','S_ref'],
                           promotes_outputs=[])
+
 
         
         adder = om.AddSubtractComp()
         adder.add_equation('CD0',
                         ['manta_CD0', 'ray_CD0'],
-                        desc='Total drag coefficient')
+                        desc='Total drag coefficient',
+                        vec_size=N)
+
 
 
         self.add_subsystem('sum', adder, promotes=[])
@@ -160,8 +164,8 @@ if __name__ == "__main__":
     prob.model.connect('tau_ray', 'ray.tau')    
 
 
-    prob.model.connect('lambda_manta', 'manta.lambda_w')
-    prob.model.connect('lambda_ray', 'ray.lambda_w')
+    prob.model.connect('lambda_manta', 'manta.lambda')
+    prob.model.connect('lambda_ray', 'ray.lambda')
 
 
     prob.model.connect('num_ducts', 'manta.num_ducts')

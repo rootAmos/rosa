@@ -36,42 +36,42 @@ eq36, 37, 38
     
     def setup(self):
         # Inputs
-        self.add_input('aspect_ratio', val=0.0, desc='aspect_ratiospect ratio')
-        self.add_input('taper', val=1.0, desc='Taper ratio')
-        self.add_input('sweep_25', val=0.0, units='deg', desc='Quarter-chord sweep angle')
-        self.add_input('h_winglet', val=0.0, units='m', desc='Height above ground')
-        self.add_input('span', val=0.0, units='m', desc='Wing span')
-        self.add_input('k_WL', val=0.0, desc='Winglet effectiveness factor. [1] Table 4')
+        self.add_input('aspect_ratio', val=1.0, desc='aspect_ratiospect ratio')
+        self.add_input('lambda', val=1.0, desc='Taper ratio')
+        self.add_input('sweep_25', val=1.0, units='deg', desc='Quarter-chord sweep angle')
+        self.add_input('h_winglet', val=1.0, units='m', desc='Height above ground')
+        self.add_input('span', val=1.0, units='m', desc='Wing span')
+        self.add_input('k_WL', val=1.0, desc='Winglet effectiveness factor. [1] Table 4')
         
         # Output
-        self.add_output('oswald_no', val=0.0, desc='Oswald efficiency factor')
+        self.add_output('oswald_no', val=1.0, desc='Oswald efficiency factor')
         
         # Declare partials
-        self.declare_partials('oswald_no', ['aspect_ratio', 'taper', 'sweep_25', 'h_winglet', 'span', 'k_WL'])
+        self.declare_partials('oswald_no', ['aspect_ratio', 'lambda', 'sweep_25', 'h_winglet', 'span', 'k_WL'])
         
     def compute(self, inputs, outputs):
         aspect_ratio = inputs['aspect_ratio']
-        taper = inputs['taper']
+        taper = inputs['lambda']
         sweep_25 = inputs['sweep_25']
         h_winglet = inputs['h_winglet']
         span = inputs['span']
         k_WL = inputs['k_WL']
         
-        # Compute delta_lambda [1] eq 37
-        delta_lambda = -0.357 + 0.45 * np.exp(0.0375 * sweep_25)
+        # Compute delta_lambda_w[1] eq 37
+        delta_lambda_w= -0.357 + 0.45 * np.exp(0.0375 * sweep_25)
         
         # Compute f(λ - Δλ) using 4th order polynomial
-        lambda_eff = taper - delta_lambda
+        lambda_eff = taper - delta_lambda_w
 
         # Compute f(λ - Δλ) [1] eq 36
-        f_lambda = (0.0524 * lambda_eff**4 - 
+        f_lambda_w= (0.0524 * lambda_eff**4 - 
                    0.15 * lambda_eff**3 + 
                    0.1659 * lambda_eff**2 - 
                    0.0706 * lambda_eff + 
                    0.0119)
         
         # Compute theoretical Oswald efficiency [1] eq 38
-        e_theo = 1.0 / (1 + f_lambda * aspect_ratio)
+        e_theo = 1.0 / (1 + f_lambda_w* aspect_ratio)
         
         # Winglet effect correction term [1] eq 45
         k_e_WL = (1 + 2 * h_winglet/(k_WL * span))**2
@@ -81,7 +81,7 @@ eq36, 37, 38
         
     def compute_partials(self, inputs, partials):
         aspect_ratio = inputs['aspect_ratio']
-        taper = inputs['taper']
+        taper = inputs['lambda']
         sweep_25 = inputs['sweep_25']
         h_winglet = inputs['h_winglet']
         span = inputs['span']
@@ -90,7 +90,7 @@ eq36, 37, 38
         # Final derivatives
         partials['oswald_no', 'aspect_ratio'] = (((2*h_winglet)/(span*k_WL) + 1)**2*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
 
-        partials['oswald_no', 'taper'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.3318*taper - 0.1493*np.exp(0.0375*sweep_25) - 0.4500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.2096*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 + 0.0479))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
+        partials['oswald_no', 'lambda'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.3318*taper - 0.1493*np.exp(0.0375*sweep_25) - 0.4500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.2096*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 + 0.0479))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
 
         partials['oswald_no', 'sweep_25'] = -(aspect_ratio*((2*h_winglet)/(span*k_WL) + 1)**2*(0.0012*np.exp(0.0375*sweep_25) - 0.0056*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570) + 0.0076*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 - 0.0035*np.exp(0.0375*sweep_25)*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3))/(aspect_ratio*(0.0706*taper - 0.0318*np.exp(0.0375*sweep_25) - 0.1659*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**2 + 0.1500*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**3 - 0.0524*(taper - 0.4500*np.exp(0.0375*sweep_25) + 0.3570)**4 + 0.0133) - 1)**2
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # Create IndepVarComp for inputs
     ivc = om.IndepVarComp()
     ivc.add_output('aspect_ratio', val=5.0, desc='aspect_ratiospect ratio')
-    ivc.add_output('taper', val=0.45, desc='Taper ratio')
+    ivc.add_output('lambda', val=0.45, desc='Taper ratio')
     ivc.add_output('sweep_25', val=12.0, units='deg', desc='Quarter-chord sweep angle')
     ivc.add_output('h_winglet', val=0.9, units='m', desc='Height above ground')
     ivc.add_output('span', val=30.0, units='m', desc='Wing span')

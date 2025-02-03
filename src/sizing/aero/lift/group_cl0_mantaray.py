@@ -5,10 +5,9 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath('../'))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath('../../../'))))
 
-from group_cl0 import GroupCL0
-from zero_ang_lift import ZeroLiftAngle, ZeroAngleLift
+from src.sizing.aero.lift.group_cl0 import GroupCL0
 
 
 
@@ -22,24 +21,31 @@ class GroupCL0MantaRay(om.Group):
     
     def initialize(self):
         self.options.declare('d_alpha0_d_twist', default=-0.405, types=float)
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
 
+        N = self.options['N']
 
         self.add_subsystem('manta_cl0',
-                        GroupCL0(),
+                        GroupCL0(N=N),
                         promotes_inputs=[],
                         promotes_outputs=[])
         
+
         self.add_subsystem('ray_cl0',
-                        GroupCL0(),
+                        GroupCL0(N=N),
                         promotes_inputs=[],
                         promotes_outputs=[])
+
 
         
         adder = om.AddSubtractComp()
         adder.add_equation('CL0_total',
                         ['CL0_manta', 'CL0_ray'],
-                        desc='Total zero-angle lift coefficient')
+                        desc='Total zero-angle lift coefficient',
+                        vec_size=N)
+
 
         self.add_subsystem('sum_CL0', adder, promotes=['*'])
 
@@ -57,21 +63,23 @@ if __name__ == "__main__":
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
+    N = 1
     
     # Wing parameters
     ivc.add_output('alpha0_airfoil_manta', val=-2.0, units='deg', desc='Wing airfoil zero-lift angle')
     ivc.add_output('d_twist_manta', val=0.0, units='rad', desc='twist angle')
-    ivc.add_output('CL_alpha_manta_eff', val=5.0, units='1/rad', desc='Wing lift curve slope')
+    ivc.add_output('CL_alpha_manta_eff', val=5.0 * np.ones(N), units='1/rad', desc='Wing lift curve slope')
 
     # Ray parameters
     ivc.add_output('alpha0_airfoil_ray', val=-1.5, units='deg', desc='Canard airfoil zero-lift angle')
     ivc.add_output('d_twist_ray', val=0.0, units='rad', desc='twist angle')
-    ivc.add_output('CL_alpha_ray_eff', val=4.0, units='1/rad', desc='Canard lift curve slope')
+    ivc.add_output('CL_alpha_ray_eff', val=4.0 * np.ones(N), units='1/rad', desc='Canard lift curve slope')
 
 
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('CL0', GroupCL0MantaRay(), promotes=['*'])
+    prob.model.add_subsystem('CL0', GroupCL0MantaRay(N=N), promotes=['*'])
+
 
     prob.model.connect('alpha0_airfoil_manta', 'manta_cl0.alpha0_airfoil')
     prob.model.connect('d_twist_manta', 'manta_cl0.d_twist')

@@ -1,17 +1,15 @@
 import openmdao.api as om
-from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
-from misc_cd0 import LeakageDrag, ExcrescenceDrag
-from group_prplsr_cd0 import  PodDragGroup
+
+
 
 import os
 import sys
 import pdb
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
-from src.sizing.mission.atmos import ComputeAtmos
-from mission.mach_number import MachNumber
-from group_cd0_wing import GroupCD0Wing
-from group_prplsr_cd0 import PodDragGroup
+
+from src.sizing.aero.drag.group_cd0_wing import GroupCD0Wing
+from src.sizing.aero.drag.group_prplsr_cd0 import PodDragGroup
 
 
 class GroupCD0Ray(om.Group):
@@ -19,24 +17,31 @@ class GroupCD0Ray(om.Group):
     Group that combines zero-lift drag components for Ray configuration.
     """
     def initialize(self):
-        pass
+        self.options.declare('N', default=1, desc='Number of nodes')
 
     def setup(self):
 
-        
-        self.add_subsystem('canard', GroupCD0Wing(),
-                          promotes_inputs=['mach','rho','u','mu','sweep_max_t','t_c','tau','lambda_w','S_ref','S_exp'],
+        N = self.options['N']
+
+
+
+        self.add_subsystem('canard', GroupCD0Wing(N=N),
+                          promotes_inputs=['mach','rho','u','mu','sweep_max_t','t_c','tau','lambda','S_ref','S_exp'],
                           promotes_outputs=[])
         
-        self.add_subsystem('pods', PodDragGroup(),
+
+        self.add_subsystem('pods', PodDragGroup(N=N),
                           promotes_inputs=['mach','rho','u','mu','num_pods','S_ref','l_pod','d_pod'],
                           promotes_outputs=[])
+
 
         
         adder = om.AddSubtractComp()
         adder.add_equation('CD0',
                         ['canard_CD0', 'pods_CD0'],
-                        desc='Total drag coefficient')
+                        desc='Total drag coefficient',
+                        vec_size=N)
+
 
         self.add_subsystem('sum', adder, promotes=[])
 
@@ -63,7 +68,7 @@ if __name__ == "__main__":
     ivc.add_output('t_c', val=0.19, desc='Thickness to chord ratio')
 
     ivc.add_output('tau', val=0.8, desc='wing tip thickness to chord ratio / wing root thickness to chord ratio')
-    ivc.add_output('lambda_w', val=0.45, desc='Wing taper ratio')
+    ivc.add_output('lambda', val=0.45, desc='Wing taper ratio')
     ivc.add_output('k_lam_ray', val=0.1, desc='Laminar flow fraction')
     ivc.add_output('sweep_max_t', val=10,units='deg', desc='Wing sweep at maximum thickness')
     ivc.add_output('l_char_ray', val=1.0, units='m',desc='Characteristic length')

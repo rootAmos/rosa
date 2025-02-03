@@ -17,17 +17,26 @@ class InducedDrag(om.ExplicitComponent):
         CDi : float
             Induced drag coefficient [-]
     """
+
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
+
+        N = self.options['N']
         # Inputs
-        self.add_input('CL', val=0.0, desc='Lift coefficient')
-        self.add_input('aspect_ratio', val=0.0, desc='Aspect ratio')
-        self.add_input('oswald_no', val=0.0, desc='Oswald efficiency factor')
-        self.add_input('CL0', val=0.0, desc='Reference area')
+
+        self.add_input('CL', val=1.0 * np.ones(N), desc='Lift coefficient')
+        self.add_input('aspect_ratio', val=1.0 , desc='Aspect ratio')
+        self.add_input('oswald_no', val=1.0 , desc='Oswald efficiency factor')
+        self.add_input('CL0', val=1.0 * np.ones(N), desc='Reference area')
         
+
+
         # Output
-        self.add_output('CDi', val=0.0, desc='Induced drag coefficient')
+        self.add_output('CDi', val=1.0 * np.ones(N), desc='Induced drag coefficient')
         
+
         # Declare partials
         self.declare_partials('CDi', ['*'])
         
@@ -42,6 +51,8 @@ class InducedDrag(om.ExplicitComponent):
         outputs['CDi'] = (CL- CL0)**2 / (np.pi * aspect_ratio *oswald_no)
         
     def compute_partials(self, inputs, partials):
+
+        N = self.options['N']
         
         CL = inputs['CL']
         aspect_ratio = inputs['aspect_ratio']
@@ -49,13 +60,13 @@ class InducedDrag(om.ExplicitComponent):
         CL0 = inputs['CL0']
 
         # Derivatives
-        partials['CDi', 'CL'] = (0.3183*(2*CL - 2*CL0))/(aspect_ratio*oswald_no)
+        partials['CDi', 'CL'] = np.eye(N) * (0.3183*(2*CL - 2*CL0))/(aspect_ratio*oswald_no)
 
         partials['CDi', 'aspect_ratio'] = -(0.3183*(CL - CL0)**2)/(aspect_ratio**2*oswald_no)
 
-        partials['CDi', 'oswald_no'] = -(0.3183*(CL - CL0)**2)/(aspect_ratio*oswald_no**2)
+        partials['CDi', 'oswald_no'] = np.eye(N) * -(0.3183*(CL - CL0)**2)/(aspect_ratio*oswald_no**2)
 
-        partials['CDi', 'CL0'] = -(0.3183*(2*CL - 2*CL0))/(aspect_ratio*oswald_no)
+        partials['CDi', 'CL0'] = np.eye(N) * -(0.3183*(2*CL - 2*CL0))/(aspect_ratio*oswald_no)
 # end
 
 if __name__ == "__main__":

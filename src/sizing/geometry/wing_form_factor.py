@@ -1,6 +1,6 @@
 import openmdao.api as om
 import numpy as np
-
+import pdb
 class FormFactor(om.ExplicitComponent):
     """
     Calculates the form factor (ff_wing) for a wing using equation 13.22.
@@ -22,17 +22,20 @@ class FormFactor(om.ExplicitComponent):
 
     def initialize(self):
         self.options.declare('x_max_t', default=0.3, desc='Position of maximum thickness')
-    
+        self.options.declare('N', default=1, desc='Number of nodes')
 
     def setup(self):
+
+        N = self.options['N']
         # Inputs
 
-        self.add_input('t_c', val=0.0, desc='Thickness to chord ratio')
-        self.add_input('mach', val=0.0, desc='Mach number')
-        self.add_input('sweep_max_t', val=0.0, units='rad', desc='Sweep angle at max thickness')
+        self.add_input('t_c', val=1.0, desc='Thickness to chord ratio')
+        self.add_input('mach', val=1.0 * np.ones(N), desc='Mach number')
+        self.add_input('sweep_max_t', val=1.0, units='rad', desc='Sweep angle at max thickness')
         
+
         # Outputs
-        self.add_output('ff_wing', val=1.0, desc='Form factor')
+        self.add_output('ff_wing', val=1.0 * np.ones(N), desc='Form factor')
         
         # Declare partials
         self.declare_partials('ff_wing', ['t_c', 'mach', 'sweep_max_t'])
@@ -49,6 +52,7 @@ class FormFactor(om.ExplicitComponent):
         sweep_max_t = inputs['sweep_max_t']
         
 
+
         # Form factor equation 13.22
         term1 = 1 + (0.6/x_max_t)*(t_c) + 100*(t_c)**4
         term2 = 1.34 * mach**0.18 * (np.cos(sweep_max_t))**0.28
@@ -60,6 +64,7 @@ class FormFactor(om.ExplicitComponent):
 
         # Unpack options
         x_max_t = self.options['x_max_t']
+        N = self.options['N']
 
 
         t_c = inputs['t_c']
@@ -70,7 +75,7 @@ class FormFactor(om.ExplicitComponent):
 
 
 
-        partials['ff_wing', 'mach'] = (0.2412*np.cos(sweep_max_t)**0.2800*(100*t_c**4 + (0.6000*t_c)/x_max_t + 1))/mach**0.8200
+        partials['ff_wing', 'mach'] = np.eye(N)*(0.2412*np.cos(sweep_max_t)**0.2800*(100*t_c**4 + (0.6000*t_c)/x_max_t + 1))/mach**0.8200
 
 
 
@@ -82,17 +87,18 @@ if __name__ == "__main__":
     
     # Create problem instance
     prob = om.Problem()
-    
+    N = 2
     # Create IndepVarComp
     ivc = om.IndepVarComp()
     ivc.add_output('t_c', val=0.12, desc='Thickness to chord ratio')
-    ivc.add_output('mach', val=0.78, desc='Mach number')
+    ivc.add_output('mach', val=0.78 * np.ones(N), desc='Mach number')
     ivc.add_output('sweep_max_t', val=20.0, units='deg', desc='Sweep angle at max thickness')
     
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('wing_ff', FormFactor(x_max_t=0.3), promotes=['*'])
+    prob.model.add_subsystem('wing_ff', FormFactor(x_max_t=0.3, N=N), promotes=['*'])
     
+
 
     # Setup problem
     prob.setup()

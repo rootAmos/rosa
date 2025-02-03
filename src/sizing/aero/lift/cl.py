@@ -18,15 +18,23 @@ class LiftCoefficient(om.ExplicitComponent):
         CL : float
             Lift coefficient [-]
     """
+
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
-        self.add_input('CL0', val=0.0, desc='Zero-angle lift coefficient')
-        self.add_input('CL_alpha_eff', val=0.0, units='1/rad',
+        N = self.options['N']
+
+        self.add_input('CL0', val=1.0 * np.ones(N), desc='Zero-angle lift coefficient')
+
+        self.add_input('CL_alpha_eff', val=1.0 * np.ones(N), units='1/rad',
                       desc='Effective lift curve slope')
-        self.add_input('alpha', val=0.0, units='rad',
+        self.add_input('alpha', val=1.0 * np.ones(N), units='rad',
                       desc='Angle of attack')
-        
-        self.add_output('CL', val=0.0, desc='Lift coefficient')
+
+
+
+        self.add_output('CL', val=1.0 * np.ones(N), desc='Lift coefficient')
         
         self.declare_partials('CL', ['CL0', 'CL_alpha_eff', 'alpha'])
         
@@ -34,6 +42,9 @@ class LiftCoefficient(om.ExplicitComponent):
         outputs['CL'] = inputs['CL0'] + inputs['CL_alpha_eff'] * inputs['alpha']
         
     def compute_partials(self, inputs, partials):
-        partials['CL', 'CL0'] = 1.0
-        partials['CL', 'CL_alpha_eff'] = inputs['alpha']
-        partials['CL', 'alpha'] = inputs['CL_alpha_eff']
+
+        N = self.options['N']
+        
+        partials['CL', 'CL0'] = 1
+        partials['CL', 'CL_alpha_eff'] = np.eye(N)*inputs['alpha']
+        partials['CL', 'alpha'] = np.eye(N)*inputs['CL_alpha_eff']

@@ -1,7 +1,7 @@
 import openmdao.api as om
 
 from computecruise import Cruise
-from computeductedfan import ComputeUnitThrust, ComputeDuctedfan
+from ComputeDuctedFan import ComputeUnitThrust, ComputeDuctedFan
 from computeturbocruiserange import PropulsiveEfficiency
 
 class CruiseMaxEfficiency(om.Group):
@@ -26,7 +26,7 @@ class CruiseMaxEfficiency(om.Group):
         
         # Add ducted fan calculation
         self.add_subsystem("ducted_fan",
-                          ComputeDuctedfan(),
+                          ComputeDuctedFan(),
                           promotes_inputs=["*"],
                           promotes_outputs=["eta_prplsv"])
         

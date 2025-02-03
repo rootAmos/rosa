@@ -15,19 +15,28 @@ class PodFormFactor(om.ExplicitComponent):
         ff_pod : float
             Pod form factor [-]
     """
-    
+
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
         # Inputs
-        self.add_input('l_pod', val=0.0, units='m', desc='Pod length')
-        self.add_input('d_pod', val=0.0, units='m', desc='Pod diameter')
+        N = self.options['N']
+        self.add_input('l_pod', val=1.0, units='m', desc='Pod length')
+
+        self.add_input('d_pod', val=1.0, units='m', desc='Pod diameter')
         
+
         # Output
-        self.add_output('ff_pod', val=0.0, desc='Pod form factor')
+        self.add_output('ff_pod', val=1.0 * np.ones(N), desc='Pod form factor')
         
+
         # Declare partials
         self.declare_partials('ff_pod', ['l_pod', 'd_pod'])
         
     def compute(self, inputs, outputs):
+
+        N = self.options['N']
         l_pod = inputs['l_pod']
         d_pod = inputs['d_pod']
         
@@ -37,7 +46,7 @@ class PodFormFactor(om.ExplicitComponent):
         # Compute form factor using equation 13.23
         outputs['ff_pod'] = (1.0 + 
                           60.0/(fineness_ratio**3) + 
-                          fineness_ratio/400.0)
+                          fineness_ratio/400.0) * np.ones(N)
         
     def compute_partials(self, inputs, partials):
         l_pod = inputs['l_pod']
@@ -55,21 +64,23 @@ if __name__ == "__main__":
     
     # Create problem instance
     prob = om.Problem()
-    
+    N = 2
     # Create IndepVarComp
     ivc = om.IndepVarComp()
     ivc.add_output('l_pod', val=4.0, units='m', desc='Pod length')
     ivc.add_output('d_pod', val=2.0, units='m', desc='Pod diameter')
     
+
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('pod_ff', PodFormFactor(), promotes=['*'])
+    prob.model.add_subsystem('pod_ff', PodFormFactor(N=N), promotes=['*'])
     
     # Setup problem
     prob.setup()
     
     # Run baseline case
     prob.run_model()
+
     
     print('\nBaseline Configuration:')
     print('----------------------')

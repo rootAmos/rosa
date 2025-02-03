@@ -17,17 +17,20 @@ class DuctFormFactor(om.ExplicitComponent):
         ff_duct : float
             Duct form factor [-]
     """
-    
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
 
     def setup(self):
         # Inputs
-        self.add_input('c_duct', val=0.0, units='m', desc='Duct length')
-        self.add_input('od_duct', val=0.0, units='m', desc='Duct outer diameter')
+        N = self.options['N']
+        self.add_input('c_duct', val=1.0 , units='m', desc='Duct length')
+        self.add_input('od_duct', val=1.0 , units='m', desc='Duct outer diameter')
         
 
         # Output
-        self.add_output('ff_duct', val=0.0, desc='Duct form factor')
+        self.add_output('ff_duct', val=1.0 * np.ones(N), desc='Duct form factor')
         
+
 
         # Declare partials
         self.declare_partials('ff_duct', ['c_duct', 'od_duct'])
@@ -35,13 +38,16 @@ class DuctFormFactor(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         c_duct = inputs['c_duct']
         od_duct = inputs['od_duct']
+
+        N = self.options['N']
         
         # Compute fineness ratio
         fineness_ratio = c_duct / od_duct
         
         # Compute form factor using equation 13.24
-        outputs['ff_duct'] = 1.0 + 0.35/fineness_ratio
+        outputs['ff_duct'] = np.ones(N) + 0.35/fineness_ratio
         
+
     def compute_partials(self, inputs, partials):
         c_duct = inputs['c_duct']
         od_duct = inputs['od_duct']
@@ -55,16 +61,18 @@ if __name__ == "__main__":
     
     # Create problem instance
     prob = om.Problem()
-    
+    N = 2
     # Create IndepVarComp
     ivc = om.IndepVarComp()
     ivc.add_output('c_duct', val=3.0, units='m', desc='Nacelle length')
     ivc.add_output('od_duct', val=2.0, units='m', desc='Nacelle diameter')
     
+
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('duct_ff', DuctFormFactor(), promotes=['*'])
+    prob.model.add_subsystem('duct_ff', DuctFormFactor(N=N), promotes=['*'])
     
+
     # Setup problem
     prob.setup()
     

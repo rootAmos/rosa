@@ -24,14 +24,17 @@ class GroupCDRay(om.Group):
 
 
         self.options.declare('manta', default=0, desc='Flag for Ray configuration')
+        self.options.declare('N', default=1, desc='Number of nodes')
 
 
     def setup(self):
         # Wing induced drag
+        N = self.options['N']
 
-        self.add_subsystem('cdi_ray', GroupCDiRay(manta=1), promotes_inputs=['*'], promotes_outputs=['*'])   
-        self.add_subsystem('cd0_ray', GroupCD0Ray(), promotes_inputs=['*'], promotes_outputs=['*'])
-        self.add_subsystem('wave_drag', WaveDrag(), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('cdi_ray', GroupCDiRay(manta=1, N=N), promotes_inputs=['*'], promotes_outputs=['*'])   
+        self.add_subsystem('cd0_ray', GroupCD0Ray(N=N), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('wave_drag', WaveDrag(N=N), promotes_inputs=['*'], promotes_outputs=['*'])
+
 
         # end
 
@@ -39,7 +42,8 @@ class GroupCDRay(om.Group):
         adder = om.AddSubtractComp()
         adder.add_equation('CD_ray',
                         ['CD0_ray', 'CDi_ray', 'CD_wave'],
-                        desc='Total drag coefficient')
+                        desc='Total drag coefficient',
+                        vec_size=N)
 
         self.add_subsystem('sum', adder, promotes=['*'])
         # end
@@ -67,7 +71,7 @@ if __name__ == "__main__":
     ivc.add_output('d_eps_ray_d_alpha', val=0.25, desc='Manta downwash derivative')
 
     ivc.add_output('aspect_ratio', val=5.0, desc='aspect ratio')
-    ivc.add_output('taper', val=0.45, desc='Taper ratio')
+    ivc.add_output('lambda', val=0.45, desc='Taper ratio')
     ivc.add_output('sweep_25', val=12.0, units='deg', desc='Quarter-chord sweep angle')
     ivc.add_output('h_winglet', val=0.9, units='m', desc='Height above ground')
     ivc.add_output('span', val=30.0, units='m', desc='Wing span')
@@ -83,7 +87,7 @@ if __name__ == "__main__":
     ivc.add_output('t_c', val=0.19, desc='Thickness to chord ratio')
 
     ivc.add_output('tau', val=0.8, desc='wing tip thickness to chord ratio / wing root thickness to chord ratio')
-    ivc.add_output('lambda_w', val=0.45, desc='Wing taper ratio')
+    ivc.add_output('lambda', val=0.45, desc='Wing taper ratio')
     ivc.add_output('k_lam_ray', val=0.1, desc='Laminar flow fraction')
     ivc.add_output('sweep_max_t', val=10, units='deg', desc='Wing sweep at maximum thickness')
     ivc.add_output('l_char_ray', val=1.0, units='m', desc='Characteristic length')

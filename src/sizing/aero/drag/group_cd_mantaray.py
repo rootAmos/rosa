@@ -25,22 +25,29 @@ class GroupCDMantaRay(om.Group):
 
         self.options.declare('ray', default=0, desc='Flag for Ray configuration')
         self.options.declare('manta', default=0, desc='Flag for Manta configuration')
+        self.options.declare('N', default=1, desc='Number of nodes')
 
 
 
     def setup(self):
+
+        N = self.options['N']
+
         # Wing induced drag
 
-        self.add_subsystem('cdi_manta_ray', GroupCDiMantaRay(manta=self.options['manta'], ray=self.options['ray']), promotes_inputs=['*'], promotes_outputs=['*'])   
-        self.add_subsystem('cd0_manta_ray', GroupCD0MantaRay(), promotes_inputs=['*'], promotes_outputs=['*'])
-        self.add_subsystem('wave_drag', WaveDrag(), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('cdi_manta_ray', GroupCDiMantaRay(manta=self.options['manta'], ray=self.options['ray'], N=N), promotes_inputs=['*'], promotes_outputs=['*'])   
+
+        self.add_subsystem('cd0_manta_ray', GroupCD0MantaRay(N=N), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('wave_drag', WaveDrag(N=N), promotes_inputs=['*'], promotes_outputs=['*'])
         # end
+
+
 
         # Sum the contributions
         adder = om.AddSubtractComp()
         adder.add_equation('CD_manta_ray',
                         ['CD0_manta_ray', 'CDi_manta_ray', 'CD_wave'],
-                        desc='Total drag coefficient')
+                        desc='Total drag coefficient', vec_size=N)
 
 
         self.add_subsystem('sum', adder, promotes=['*'])
@@ -54,9 +61,12 @@ class GroupCDMantaRay(om.Group):
 if __name__ == "__main__":
     # Create problem instance
     prob = om.Problem()
+
+    N = 2
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
+
         # Wing parameters
     ivc.add_output('alpha0_airfoil_manta', val=-2.0, units='deg', desc='Wing airfoil zero-lift angle')
     ivc.add_output('alpha0_airfoil_ray', val=-2.0, units='deg', desc='Wing airfoil zero-lift angle')
@@ -127,10 +137,11 @@ if __name__ == "__main__":
 
 
 
-    ivc.add_output('u', val=50.0, units='m/s', desc='Flow speed')
-    ivc.add_output('mu', val=1.789e-5, units='Pa*s', desc='Dynamic viscosity')
-    ivc.add_output('rho', val=0.3639, units='kg/m**3', desc='Density')
-    ivc.add_output('mach', val=50/300, desc='Mach number')
+    ivc.add_output('u', val=50.0 * np.ones(N), units='m/s', desc='Flow speed')
+    ivc.add_output('mu', val=1.789e-5 * np.ones(N), units='Pa*s', desc='Dynamic viscosity')
+    ivc.add_output('rho', val=0.3639 * np.ones(N), units='kg/m**3', desc='Density')
+
+    ivc.add_output('mach', val=50/300 * np.ones(N), desc='Mach number')
 
     ivc.add_output('c_duct', val=3.0, units='m', desc='Nacelle length')
     ivc.add_output('od_duct', val=2.0, units='m', desc='Duct outer diameter')
@@ -150,7 +161,7 @@ if __name__ == "__main__":
 
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('CD', GroupCDMantaRay(manta=1, ray=1), promotes=['*'])
+    prob.model.add_subsystem('CD', GroupCDMantaRay(manta=1, ray=1, N=N), promotes=['*'])
     
     
 
@@ -198,8 +209,8 @@ if __name__ == "__main__":
     prob.model.connect('tau_ray', 'ray.tau')    
 
 
-    prob.model.connect('lambda_manta', 'manta.lambda_w')
-    prob.model.connect('lambda_ray', 'ray.lambda_w')
+    prob.model.connect('lambda_manta', 'manta.lambda')
+    prob.model.connect('lambda_ray', 'ray.lambda')
 
 
     prob.model.connect('num_ducts', 'manta.num_ducts')
@@ -230,9 +241,7 @@ if __name__ == "__main__":
 
     prob.model.connect('aspect_ratio_manta', 'manta.aspect_ratio')
     prob.model.connect('aspect_ratio_ray', 'ray.aspect_ratio')
-    
-    prob.model.connect('taper_manta', 'manta.taper')
-    prob.model.connect('taper_ray', 'ray.taper')
+
 
     prob.model.connect('sweep_25_manta', 'manta.sweep_25')
     prob.model.connect('sweep_25_ray', 'ray.sweep_25')

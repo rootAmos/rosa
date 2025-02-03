@@ -24,15 +24,17 @@ class DuctWettedArea(om.ExplicitComponent):
     
     def setup(self):
         # Inputs
-        self.add_input('c_duct', val=0.0, units='m', desc='Duct length')
-        self.add_input('od_duct', val=0.0, units='m', desc='Duct outer diameter')
-        self.add_input('id_duct', val=0.0, units='m', desc='Duct inner diameter')
+        self.add_input('c_duct', val=1.0, units='m', desc='Duct length')
+        self.add_input('od_duct', val=1.0, units='m', desc='Duct outer diameter')
+        self.add_input('id_duct', val=1.0, units='m', desc='Duct inner diameter')
         
 
+
         # Output
-        self.add_output('S_wet_duct', val=0.0, units='m**2', 
+        self.add_output('S_wet_duct', val=1.0, units='m**2', 
                        desc='Duct wetted area')
         
+
         # Declare partials
         self.declare_partials('S_wet_duct', 
                             ['c_duct', 'od_duct', 'id_duct'])

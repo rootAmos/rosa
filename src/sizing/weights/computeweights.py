@@ -19,7 +19,7 @@ class WingWeight(om.ExplicitComponent):
         self.add_input("t_c_w", val=1.0, units=None, desc="Wing thickness-to-chord ratio")
         self.add_input("sweep_c_4_w", val=1.0, units="rad", desc="Wing quarter-chord sweep angle")
         self.add_input("q_cruise", val=1.0, units="lbf/ft**2", desc="Cruise dynamic pressure")
-        self.add_input("lambda_w", val=1.0, units=None, desc="Wing taper ratio")
+        self.add_input("lambda", val=1.0, units=None, desc="Wing taper ratio")
         self.add_input("w_fuel", val=1.0, units="lbf", desc="Weight of fuel in wings")
         
         self.add_output("w_wing", units="lbf",
@@ -36,7 +36,7 @@ class WingWeight(om.ExplicitComponent):
         t_c_w = inputs["t_c_w"]
         sweep_c_4_w = inputs["sweep_c_4_w"]
         q_cruise = inputs["q_cruise"]
-        lambda_w = inputs["lambda_w"]
+        lambda_w= inputs["lambda"]
         w_fuel = inputs["w_fuel"]
         
 
@@ -60,7 +60,7 @@ class WingWeight(om.ExplicitComponent):
         t_c_w = inputs["t_c_w"]
         sweep_c_4_w = inputs["sweep_c_4_w"]
         q_cruise = inputs["q_cruise"]
-        lambda_w = inputs["lambda_w"]
+        lambda_w= inputs["lambda"]
         w_fuel = inputs["w_fuel"]
 
 
@@ -74,7 +74,7 @@ class WingWeight(om.ExplicitComponent):
 
         partials["w_wing", "q_cruise"] =(2.1600e-04*lambda_w**0.0400*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(q_cruise**0.9940*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
-        partials["w_wing", "lambda_w"] = (0.0014*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(lambda_w**0.9600*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
+        partials["w_wing", "lambda"] = (0.0014*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*(n_ult*w_mto)**0.4900*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/(lambda_w**0.9600*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
         partials["w_wing", "n_ult"] = (0.0176*lambda_w**0.0400*q_cruise**0.0060*s_ref**0.7580*w_fuel**0.0035*w_mto*(ar_w/np.cos(sweep_c_4_w)**2)**0.6000)/((n_ult*w_mto)**0.5100*((100*t_c_w)/np.cos(sweep_c_4_w))**0.3000)
 
@@ -99,7 +99,7 @@ class HorizontalTailWeight(om.ExplicitComponent):
         self.add_input('lambda_ht', val=1.0, units=None, desc='Horizontal tail taper ratio')
         
         # Add output
-        self.add_output('w_htail', units='lbf',
+        self.add_output('w_htail', val = 1,units='lbf',
                        desc='Horizontal tail weight')
         
         self.declare_partials('*', '*', method='exact')
@@ -172,7 +172,7 @@ class VerticalTailWeight(om.ExplicitComponent):
         
         # Add output
         self.add_output('w_vtail', units='lbf',
-                       desc='Vertical tail weight')
+                       desc='Vertical tail weight', val =1)
         
         self.declare_partials('*', '*', method='exact')
         
@@ -215,19 +215,19 @@ class VerticalTailWeight(om.ExplicitComponent):
 
 
 
-        partials["w_vtail", "n_ult"] = (0.3760*lambda_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*w_mto*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/((n_ult*w_mto)**0.6240*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
+        partials["w_vtail", "n_ult"] = (0.3760*lambda_w_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*w_mto*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/((n_ult*w_mto)**0.6240*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
 
-        partials["w_vtail", "w_mto"] = (0.3760*lambda_vt**0.0390*n_ult*q_cruise**0.1220*s_vt**0.8730*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/((n_ult*w_mto)**0.6240*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
+        partials["w_vtail", "w_mto"] = (0.3760*lambda_w_vt**0.0390*n_ult*q_cruise**0.1220*s_vt**0.8730*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/((n_ult*w_mto)**0.6240*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
 
-        partials["w_vtail", "q_cruise"] = (0.1220*lambda_vt**0.0390*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(q_cruise**0.8780*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
+        partials["w_vtail", "q_cruise"] = (0.1220*lambda_w_vt**0.0390*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(q_cruise**0.8780*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
 
-        partials["w_vtail", "s_vt"] = (0.8730*lambda_vt**0.0390*q_cruise**0.1220*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(s_vt**0.1270*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
+        partials["w_vtail", "s_vt"] = (0.8730*lambda_w_vt**0.0390*q_cruise**0.1220*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(s_vt**0.1270*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
 
-        partials["w_vtail", "t_c_vt"] = -(49*lambda_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(np.cos(sweep_c_4_vt)*((100*t_c_vt)/np.cos(sweep_c_4_vt))**1.4900)
+        partials["w_vtail", "t_c_vt"] = -(49*lambda_w_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(np.cos(sweep_c_4_vt)*((100*t_c_vt)/np.cos(sweep_c_4_vt))**1.4900)
 
-        partials["w_vtail", "sweep_c_4_vt"] = (0.7140*ar_w*lambda_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*np.sin(sweep_c_4_vt)*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730))/(np.cos(sweep_c_4_vt)**3*(ar_w/np.cos(sweep_c_4_vt)**2)**0.6430*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900) - (49*lambda_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*t_c_vt*np.sin(sweep_c_4_vt)*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(np.cos(sweep_c_4_vt)**2*((100*t_c_vt)/np.cos(sweep_c_4_vt))**1.4900)
+        partials["w_vtail", "sweep_c_4_vt"] = (0.7140*ar_w*lambda_w_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*np.sin(sweep_c_4_vt)*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730))/(np.cos(sweep_c_4_vt)**3*(ar_w/np.cos(sweep_c_4_vt)**2)**0.6430*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900) - (49*lambda_w_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*t_c_vt*np.sin(sweep_c_4_vt)*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(np.cos(sweep_c_4_vt)**2*((100*t_c_vt)/np.cos(sweep_c_4_vt))**1.4900)
 
-        partials["w_vtail", "ar_w"] = (0.3570*lambda_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730))/(np.cos(sweep_c_4_vt)**2*(ar_w/np.cos(sweep_c_4_vt)**2)**0.6430*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
+        partials["w_vtail", "ar_w"] = (0.3570*lambda_w_vt**0.0390*q_cruise**0.1220*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730))/(np.cos(sweep_c_4_vt)**2*(ar_w/np.cos(sweep_c_4_vt)**2)**0.6430*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
 
         partials["w_vtail", "lambda_vt"] = (0.0390*q_cruise**0.1220*s_vt**0.8730*(n_ult*w_mto)**0.3760*(0.0146*f_tail + 0.0730)*(ar_w/np.cos(sweep_c_4_vt)**2)**0.3570)/(lambda_vt**0.9610*((100*t_c_vt)/np.cos(sweep_c_4_vt))**0.4900)
 
@@ -648,7 +648,7 @@ if __name__ == "__main__":
     ivc.add_output("t_c_w", val=0.13, units=None, desc="Wing thickness-to-chord ratio")
     ivc.add_output("sweep_c_4_w", val=10/180 * np.pi, units="rad", desc="Wing quarter-chord sweep angle")
     ivc.add_output("q_cruise", val=q_cruise, units="Pa", desc="Cruise dynamic pressure")
-    ivc.add_output("lambda_w", val=0.45, units=None, desc="Wing taper ratio")
+    ivc.add_output("lambda", val=0.45, units=None, desc="Wing taper ratio")
     ivc.add_output("w_fuel", val=w_fuel, units="N", desc="Weight of fuel in wings")
 
     # HorizontalTailWeight inputs

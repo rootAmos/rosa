@@ -1,20 +1,17 @@
 import openmdao.api as om
-from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
-from misc_cd0 import LeakageDrag, ExcrescenceDrag
-from group_prplsr_cd0 import  PodDragGroup
+
 
 import os
 import sys
 import pdb
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
-from src.sizing.mission.atmos import ComputeAtmos
-from mission.mach_number import MachNumber
-from reynolds import ReynoldsNumber
-from skin_friction import SkinFriction
-from geometry.wing_form_factor import FormFactor
-from geometry.wing_wetted import WettedAreaWing
 
+from src.sizing.aero.drag.reynolds import ReynoldsNumber
+from src.sizing.aero.drag.skin_friction import SkinFriction
+from src.sizing.geometry.wing_form_factor import FormFactor
+from src.sizing.geometry.wing_wetted import WettedAreaWing
+from src.sizing.aero.drag.cd0 import ZeroLiftDragComponent
 
 
 
@@ -27,30 +24,36 @@ class GroupCD0Wing(om.Group):
     Group that combines zero-lift drag components for Ray configuration.
     """
     def initialize(self):
-        pass
+        self.options.declare('N', default=1, desc='Number of nodes')
 
     def setup(self):
 
+        N = self.options['N']
 
-        self.add_subsystem('reynolds', ReynoldsNumber(),
+
+
+        self.add_subsystem('reynolds', ReynoldsNumber(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
+
 
 
         self.add_subsystem('wet', WettedAreaWing(),
                           promotes_inputs=['*'],promotes_outputs=['*'])
         
 
-        self.add_subsystem('ff', FormFactor(),
+        self.add_subsystem('ff', FormFactor(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
         
 
 
-        self.add_subsystem('cf', SkinFriction(),
+        self.add_subsystem('cf', SkinFriction(N=N),
                           promotes_inputs=['*'],promotes_outputs=['*'])
     
 
-        self.add_subsystem('cd0', ZeroLiftDragComponent(),
+
+        self.add_subsystem('cd0', ZeroLiftDragComponent(N=N),
                         promotes_inputs=['*'],promotes_outputs=['*'])
+
 
     
         self.connect('ff_wing', 'ff')
@@ -68,7 +71,7 @@ if __name__ == "__main__":
     ivc.add_output('S_exp', val=50.0, units='m**2', desc='Exposed planform area')
     ivc.add_output('t_c', val=0.19, desc='Thickness to chord ratio')
     ivc.add_output('tau', val=0.8, desc='wing tip thickness to chord ratio / wing root thickness to chord ratio')
-    ivc.add_output('lambda_w', val=0.45, desc='Wing taper ratio')
+    ivc.add_output('lambda', val=0.45, desc='Wing taper ratio')
     ivc.add_output('k_lam', val=0.1, desc='Laminar flow fraction')
     ivc.add_output('sweep_max_t', val=10,units='deg', desc='Wing sweep at maximum thickness')
 

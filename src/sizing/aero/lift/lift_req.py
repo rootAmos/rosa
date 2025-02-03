@@ -17,22 +17,32 @@ class LiftRequired(om.ExplicitComponent):
         lift : float
             Required lift force [N]
     """
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
     
+
     def setup(self):
+
+        N = self.options['N']
         # Inputs
-        self.add_input('mto', val=0.0, units='kg',
+        self.add_input('mto', val=1.0, units='kg',
                       desc='Maximum takeoff weight')
-        self.add_input('gamma', val=0.0, units='rad',
+        self.add_input('gamma', val=1.0 * np.ones(N), units='rad',
                       desc='Flight path angle')
+
         
+
         # Outputs
-        self.add_output('lift', val=0.0, units='N',
+        self.add_output('lift', val=1.0 * np.ones(N), units='N',
                        desc='Required lift force')
         
+
         # Declare partials
         self.declare_partials('lift', ['mto', 'gamma'])
         
     def compute(self, inputs, outputs):
+
+
         mto = inputs['mto']
         gamma = inputs['gamma']
         g = 9.80665  # gravitational acceleration [m/s^2]
@@ -44,9 +54,11 @@ class LiftRequired(om.ExplicitComponent):
         mto = inputs['mto']
         gamma = inputs['gamma']
         g = 9.80665
+
+        N = self.options['N']
         
         partials['lift', 'mto'] = g * np.cos(gamma)
-        partials['lift', 'gamma'] = -mto * g * np.sin(gamma)
+        partials['lift', 'gamma'] = np.eye(N) * -mto * g * np.sin(gamma)
 
 
 if __name__ == "__main__":

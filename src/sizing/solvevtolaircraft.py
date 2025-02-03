@@ -125,7 +125,7 @@ if __name__ == "__main__":
     ivc.add_output("t_c_w", val=0.13, units=None, desc="Wing thickness-to-chord ratio")
     ivc.add_output("sweep_c_4_w", val=10/180 * np.pi, units="rad", desc="Wing quarter-chord sweep angle")
     ivc.add_output("q_cruise", val=q_cruise, units="Pa", desc="Cruise dynamic pressure")
-    ivc.add_output("lambda_w", val=0.45, units=None, desc="Wing taper ratio")
+    ivc.add_output("lambda", val=0.45, units=None, desc="Wing taper ratio")
     ivc.add_output("b_w", val=43, units="ft", desc="Wingspan")
 
     # HorizontalTailWeight inputs

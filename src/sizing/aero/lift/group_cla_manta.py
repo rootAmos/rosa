@@ -28,22 +28,26 @@ class CoupledCLAlphaManta(om.ExplicitComponent):
 
     def initialize(self):
         self.options.declare('ray', default=0, desc='Flag for Ray configuration')
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
 
+        N = self.options['N']
+
         # Inputs
-        self.add_input('CL_alpha', val=0.0, units='1/rad', 
+        self.add_input('CL_alpha', val=1.0 * np.ones(N), units='1/rad', 
                       desc='Manta lift curve slope')
         
         if self.options['ray']:
-            self.add_input('d_eps_manta_d_alpha', val=0.0, 
+            self.add_input('d_eps_manta_d_alpha', val=1.0, 
                       desc='Manta downwash derivative from canard influence')
         # end
         
         # Outputs
-        self.add_output('CL_alpha_eff', val=0.0, units='1/rad',
+        self.add_output('CL_alpha_eff', val=1.0 * np.ones(N), units='1/rad',
                        desc='Effective wing lift curve slope')
         
+
         # Partials
         self.declare_partials('CL_alpha_eff', ['*'])
         
@@ -61,8 +65,12 @@ class CoupledCLAlphaManta(om.ExplicitComponent):
         
 
     def compute_partials(self, inputs, partials):
-        partials['CL_alpha_eff', 'CL_alpha'] = 1 - inputs['d_eps_manta_d_alpha']
+
+        N = self.options['N']
+
+        partials['CL_alpha_eff', 'CL_alpha'] = np.eye(N)*(1 - inputs['d_eps_manta_d_alpha'])
         partials['CL_alpha_eff', 'd_eps_manta_d_alpha'] = -inputs['CL_alpha'] 
+
 
 
 class GroupCLAlphaManta(om.Group):
@@ -73,19 +81,24 @@ class GroupCLAlphaManta(om.Group):
 
     def initialize(self):
         self.options.declare('ray', default=0, desc='Flag for Ray configuration')
+        self.options.declare('N', default=1, desc='Number of nodes')
     
     def setup(self):
+
+        N = self.options['N']
       
         self.add_subsystem('cl_alpha_3d',
-            LiftCurveSlope3D(),
+            LiftCurveSlope3D(N=N),
             promotes_inputs=['*'],
             promotes_outputs=['*'])
+
                     
 
         self.add_subsystem('cpld_cl_alpha', 
-                        CoupledCLAlphaManta(ray=self.options['ray']),
+                        CoupledCLAlphaManta(ray=self.options['ray'], N=N),
                         promotes_inputs=['*'],
                         promotes_outputs=['*'])
+
         # end
 
 
@@ -96,9 +109,11 @@ if __name__ == "__main__":
     
     # Create IndepVarComp
     ivc = om.IndepVarComp()
+
+    N = 1
         
     # Manta parameters
-    ivc.add_output('mach', val=0.78, desc='Manta Mach number')
+    ivc.add_output('mach', val=0.78 * np.ones(N), desc='Manta Mach number')
     ivc.add_output('phi_50', val=5.0, units='deg', desc='Manta 50% chord sweep angle')
     ivc.add_output('cl_alpha_airfoil', val=2*np.pi, units='1/rad', desc='Manta airfoil lift curve slope')
 
@@ -108,10 +123,11 @@ if __name__ == "__main__":
 
     # Add subsystems to model
     prob.model.add_subsystem('inputs', ivc, promotes=['*'])
-    prob.model.add_subsystem('cl_alpha_coupled', GroupCLAlphaManta(ray=1), promotes=['*'])
+    prob.model.add_subsystem('cl_alpha_coupled', GroupCLAlphaManta(ray=1, N=N), promotes=['*'])
 
 
     
+
     # Setup problem
     prob.setup()
     

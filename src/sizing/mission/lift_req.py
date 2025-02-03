@@ -8,7 +8,7 @@ class Cruise(om.ExplicitComponent):
 
         # Inputs
         self.add_input('w_mto',val=1.0, units='N', desc='Maximum takeoff weight')
-        self.add_input('gamma', val=0.0, units='rad', desc='Flight path angle (0 for cruise)')
+        self.add_input('gamma', val=1.0, units='rad', desc='Flight path angle (0 for cruise)')
 
         # Outputs
         self.add_output('lift_req', val=1.0, units='N', desc='Required lift')

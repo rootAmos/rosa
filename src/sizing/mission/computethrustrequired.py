@@ -25,15 +25,18 @@ class ThrustRequired(om.ExplicitComponent):
     
     def setup(self):
         # Inputs
-        self.add_input('D', val=0.0, units='N', desc='Drag force')
-        self.add_input('W', val=0.0, units='N', desc='Aircraft weight')
-        self.add_input('gamma', val=0.0, units='rad', desc='Flight path angle')
-        self.add_input('mass', val=0.0, units='kg', desc='Aircraft mass')
-        self.add_input('udot', val=0.0, units='m/s**2', desc='Acceleration')
+        self.add_input('D', val=1.0, units='N', desc='Drag force')
+        self.add_input('W', val=1.0, units='N', desc='Aircraft weight')
+        self.add_input('gamma', val=1.0, units='rad', desc='Flight path angle')
+        self.add_input('mass', val=1.0, units='kg', desc='Aircraft mass')
+
+        self.add_input('udot', val=1.0, units='m/s**2', desc='Acceleration')
         
+
         # Output
-        self.add_output('T_req', val=0.0, units='N', desc='Required thrust')
+        self.add_output('T_req', val=1.0, units='N', desc='Required thrust')
         
+
         # Declare partials
         self.declare_partials('T_req', ['D', 'W', 'gamma', 'mass', 'udot'])
         

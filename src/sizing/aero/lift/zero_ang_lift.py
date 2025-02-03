@@ -23,15 +23,17 @@ class ZeroLiftAngle(om.ExplicitComponent):
 
     def setup(self):
         # Inputs
-        self.add_input('alpha0_airfoil', val=0.0, units='rad', 
+        self.add_input('alpha0_airfoil', val=1.0, units='rad', 
                       desc='airfoil zero-lift angle')
-        self.add_input('d_twist', val=0.0, units='rad', 
+        self.add_input('d_twist', val=1.0, units='rad', 
                       desc='twist angle')
+
         
         # Outputs
-        self.add_output('alpha0', val=0.0, units='rad', 
+        self.add_output('alpha0', val=1.0, units='rad', 
                        desc='lifting surface zero-lift angle with Mach correction')
         
+
         # Declare partials
         self.declare_partials('alpha0', ['*'], method='exact')
         
@@ -77,16 +79,22 @@ class ZeroAngleLift(om.ExplicitComponent):
         CL0 : float
             Zero-angle lift coefficient [-]
     """
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
     
+
     def setup(self):
+
+        N = self.options['N']
         # Inputs
-        self.add_input('CL_alpha_eff', val=0.0, units='1/rad', 
+        self.add_input('CL_alpha_eff', val=1.0 * np.ones(N), units='1/rad', 
                       desc='Lift curve slope')
-        self.add_input('alpha0', val=0.0, units='rad', 
+
+        self.add_input('alpha0', val=1.0, units='rad', 
                       desc='Zero-lift angle of attack')
         
         # Outputs
-        self.add_output('CL0', val=0.0, 
+        self.add_output('CL0', val=1.0 * np.ones(N), 
                        desc='Zero-angle lift coefficient')
         
         # Declare partials
@@ -100,11 +108,13 @@ class ZeroAngleLift(om.ExplicitComponent):
         outputs['CL0'] = -CL_alpha_eff * alpha0
         
     def compute_partials(self, inputs, partials):
+
+        N = self.options['N']
         CL_alpha_eff = inputs['CL_alpha_eff']
         alpha0 = inputs['alpha0']
         
         # Derivatives
-        partials['CL0', 'CL_alpha_eff'] = -alpha0
+        partials['CL0', 'CL_alpha_eff'] = np.eye(N) * -alpha0
         partials['CL0', 'alpha0'] = -CL_alpha_eff
 
 
