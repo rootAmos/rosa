@@ -181,8 +181,7 @@ if __name__ == "__main__":
     ivc.add_output('d_twist_ray', val=0.0, units='rad', desc='twist angle')
 
 
-    ivc.add_output('taper_manta', val=0.45, desc='Taper ratio')
-    ivc.add_output('taper_ray', val=0.45, desc='Taper ratio')
+
     ivc.add_output('sweep_25_manta', val=12.0, units='deg', desc='Quarter-chord sweep angle')
     ivc.add_output('sweep_25_ray', val=12.0, units='deg', desc='Quarter-chord sweep angle')
 

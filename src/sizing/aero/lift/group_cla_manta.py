@@ -54,9 +54,9 @@ class CoupledCLAlphaManta(om.ExplicitComponent):
 
     def compute(self, inputs, outputs):
         CL_alpha = inputs['CL_alpha']
-        d_eps_manta_d_alpha = inputs['d_eps_manta_d_alpha']
 
         if self.options['ray'] == 1:
+            d_eps_manta_d_alpha = inputs['d_eps_manta_d_alpha']
             outputs['CL_alpha_eff'] = CL_alpha * (1 - d_eps_manta_d_alpha)
         else:
             outputs['CL_alpha_eff'] = CL_alpha
@@ -67,9 +67,16 @@ class CoupledCLAlphaManta(om.ExplicitComponent):
     def compute_partials(self, inputs, partials):
 
         N = self.options['N']
+        ray = self.options['ray']
 
-        partials['CL_alpha_eff', 'CL_alpha'] = np.eye(N)*(1 - inputs['d_eps_manta_d_alpha'])
-        partials['CL_alpha_eff', 'd_eps_manta_d_alpha'] = -inputs['CL_alpha'] 
+        if ray == 1:    
+            partials['CL_alpha_eff', 'CL_alpha'] = np.eye(N)*(1 - inputs['d_eps_manta_d_alpha'])
+            partials['CL_alpha_eff', 'd_eps_manta_d_alpha'] = -inputs['CL_alpha'] 
+        else:
+            partials['CL_alpha_eff', 'CL_alpha'] = np.eye(N)
+        # end
+
+
 
 
 

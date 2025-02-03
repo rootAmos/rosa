@@ -1,11 +1,19 @@
 import openmdao.api as om
 import numpy as np
 
-from group_cl0 import GroupCL0
-from group_cla_manta import GroupCLAlphaManta
-from lift_req import LiftRequired
-from ang_attack import AngleOfAttack
-from cl import LiftCoefficient
+import os
+import sys
+import pdb
+import numpy as np
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../')))
+
+from src.sizing.aero.lift.group_cl0 import GroupCL0
+from src.sizing.aero.lift.group_cla_manta import GroupCLAlphaManta
+from src.sizing.aero.lift.lift_req import LiftRequired
+from src.sizing.aero.lift.ang_attack import AngleOfAttack
+from src.sizing.aero.lift.cl import LiftCoefficient
+
 
 
 class GroupCLManta(om.Group):
