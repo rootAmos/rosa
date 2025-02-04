@@ -94,8 +94,9 @@ class MTOMMargin(om.ExplicitComponent):
         self.declare_partials('mtom_margin', ['w_mto', 'w_mto_calc'])
         
     def compute(self, inputs, outputs):
-        outputs['mtom_margin'] = inputs['w_mto'] - inputs['w_mto_calc']
+        outputs['mtom_margin'] = abs(inputs['w_mto'] - inputs['w_mto_calc'])
         
+
     def compute_partials(self, inputs, partials):
         partials['mtom_margin', 'w_mto'] = 1.0
         partials['mtom_margin', 'w_mto_calc'] = -1.0
@@ -111,7 +112,7 @@ class MantaRayMassRatio(om.ExplicitComponent):
 
     def setup_partials(self):
         # Declare all partial derivatives
-        self.declare_partials('ray_mto', ['ray_mass_ratio', 'manta_mto'])
+        self.declare_partials('*', '*')
     
     def compute(self, inputs, outputs):
         outputs['ray_mto'] = inputs['ray_mass_ratio'] * inputs['manta_mto']
@@ -138,7 +139,7 @@ class MantaCruiseFuel(om.ExplicitComponent):
         self.add_output('w_fuel_crz', units='N', desc='Remaining fuel weight for cruise')
 
     def setup_partials(self):
-        self.declare_partials('w_fuel_crz', ['*'])
+        self.declare_partials('w_fuel_crz', '*')
     
 
     def compute(self, inputs, outputs):
@@ -222,7 +223,7 @@ class SizeMantaRay(om.Group):
 
         self.connect('mantaray_mto', ['manta_ray_m2w.mass','climb.lift_req.mto'])
         self.connect('manta_ray_m2w.weight', ['climb.w_mto','mantaray_mtom_margin.w_mto'])
-        self.connect('manta_m2w.weight', ['cruise.w_mto','mantaray_mtom_margin.w_mto_calc','manta_weight.w_mto'])
+        self.connect('manta_m2w.weight', ['cruise.w_mto','manta_weight.w_mto'])
 
 
 
@@ -298,14 +299,31 @@ class SizeMantaRay(om.Group):
                           promotes_outputs=[],
                           promotes_inputs=[])
         
+        adder = om.AddSubtractComp()
+        adder.add_equation('manta_ray_mto_calc',
+                        [
+                        'manta_mto_calc',
+                        'ray_mto_calc',
+                    ],
+                        desc='Manta Ray MTOM',
+
+                        vec_size=1, units="N")
+        self.add_subsystem('sum_MTOW', adder, promotes=[])
+
+
         # Add MTOM margin check
         self.add_subsystem("mantaray_mtom_margin",
                           MTOMMargin(),
                           promotes_inputs=[],
                           promotes_outputs=[])
         
-        
+        self.connect('manta_weight.w_mto_calc', 'sum_MTOW.manta_mto_calc')
+        self.connect('ray_weight.mto_calc', 'sum_MTOW.ray_mto_calc')
+
+
         #self.set_input_defaults("w_fuel", val=1.0, units="N")
+
+        self.connect('sum_MTOW.manta_ray_mto_calc', 'mantaray_mtom_margin.w_mto_calc')
 
 
 if __name__ == "__main__":
@@ -319,13 +337,13 @@ if __name__ == "__main__":
     N_cruise = 10
     
     # Mission parameters
-    ivc.add_output('u_eas', val=70, units='m/s', desc='Equivalent airspeed')
-    ivc.add_output('u_cruise', val=100 * np.ones(N_cruise), units='m/s', desc='Cruise airspeed')
+    ivc.add_output('u_eas', val=120, units='m/s', desc='Equivalent airspeed')
+    ivc.add_output('u_cruise', val=200 * np.ones(N_cruise), units='m/s', desc='Cruise airspeed')
     ivc.add_output('gamma_climb', val=5.0 * np.ones(N_climb), units='deg', desc='Climb angle')
 
     ivc.add_output('gamma_cruise', val=0.0 * np.ones(N_cruise), units='deg', desc='Cruise angle')
 
-    ivc.add_output('mto_manta', val=10000.0, units='kg', desc='Maximum takeoff weight')
+    ivc.add_output('mto_manta', val=30000.0, units='kg', desc='Maximum takeoff weight')
     ivc.add_output('duration', val=600.0, units='s', desc='Climb duration')
 
     ivc.add_output('rho_fuel', val=800.0, units='kg/m**3', desc='Fuel density')
@@ -347,11 +365,11 @@ if __name__ == "__main__":
 
     ivc.add_output('mu_cruise', val=1.789e-5 * np.ones(N_cruise), units='Pa*s', desc='Dynamic viscosity')
     ivc.add_output('mu_climb', val=1.789e-5 * np.ones(N_climb), units='Pa*s', desc='Dynamic viscosity')
-    ivc.add_output('ray_energy_ratio', val=0.3)
+    ivc.add_output('ray_energy_ratio', val=0.99) # fraction of energy provided by ray in climb
 
     ivc.add_output('mto', val=10000.0, units='kg', desc='Maximum takeoff mass')
-    ivc.add_output('cp', val=0.5/60/60/1000, units='kg/W/s')
-    ivc.add_output('m_fuel_manta_mission', val=600.0, units='kg')
+    ivc.add_output('cp', val=0.3/60/60/1000, units='kg/W/s')
+    ivc.add_output('m_fuel_manta_mission', val=4000.0, units='kg')
     ivc.add_output('ray_mass_ratio', val=0.4, desc='Ray MTOM / Manta MTOM ratio')
 
     # Mission parameters
@@ -359,22 +377,22 @@ if __name__ == "__main__":
 
 
     # Thrust power group inputs
-    ivc.add_output('thrust_ratio', val=0.7 * np.ones(N_climb), desc='Ratio between ray and manta thrust')
+    ivc.add_output('thrust_ratio', val=0.4 * np.ones(N_climb), desc='Ratio between ray and manta thrust')
     ivc.add_output('num_pods', val=6, desc='Number of ray propulsors')
     ivc.add_output('num_ducts', val=4, desc='Number of manta propulsors')
 
     # Ducted fan inputs
-    ivc.add_output('d_blades_duct', 1.5, units='m')
+    ivc.add_output('d_blades_duct', 2.4, units='m')
     ivc.add_output('d_hub_duct', 0.5, units='m')
     ivc.add_output('epsilon_r', 1.5, units=None)
     ivc.add_output('eta_fan', 0.9 , units=None)
-    ivc.add_output('eta_duct', 0.5, units=None)
-    ivc.add_output('c_duct', val=3.0, units='m', desc='Nacelle length')
-    ivc.add_output('od_duct', val=2.0, units='m', desc='Duct outer diameter')
-    ivc.add_output('id_duct', val=1.0, units='m', desc='Duct inner diameter')
+    ivc.add_output('eta_duct', 0.9, units=None)
+    ivc.add_output('c_duct', val=1.0, units='m', desc='Nacelle length')
+    ivc.add_output('od_duct', val=2.402, units='m', desc='Duct outer diameter')
+    ivc.add_output('id_duct', val=2.401, units='m', desc='Duct inner diameter')
     ivc.add_output('Q_duct', val=1.0, desc='Duct interference factor')
     ivc.add_output('k_lam_duct', val=0.1, desc='Duct laminar flow fraction')
-    ivc.add_output("n_blades_fan", val=5.0)
+    ivc.add_output("n_blades_fan", val=12.0)
     ivc.add_output("k_fan", val=31.92)
 
 
@@ -382,13 +400,13 @@ if __name__ == "__main__":
     
 
     # Propeller inputs
-    ivc.add_output('d_blades_prop', 1.5, units='m')
+    ivc.add_output('d_blades_prop', 3, units='m')
     ivc.add_output("n_blades_prop", val=5.0)
 
     ivc.add_output('d_hub_prop', 0.5, units='m')
     ivc.add_output('eta_prop', 0.9 , units=None)
-    ivc.add_output('l_pod', val=3.0, units='m', desc='Pod length')
-    ivc.add_output('d_pod', val=2.0, units='m', desc='Pod diameter')
+    ivc.add_output('l_pod', val=2.0, units='m', desc='Pod length')
+    ivc.add_output('d_pod', val=0.5, units='m', desc='Pod diameter')
     ivc.add_output('Q_pod', val=1.0, desc='Pod interference factor')
     ivc.add_output('k_lam_pod', val=0.1, desc='Pod laminar flow fraction')
 
@@ -396,7 +414,7 @@ if __name__ == "__main__":
     ivc.add_output("k_prplsr", val=31.92)
 
     # Ducted Fan inputs
-    ivc.add_output("p_fan_shaft_max", val=250000.0, units="W")
+    #ivc.add_output("p_fan_shaft_max", val=250000.0, units="W")
 
 
 
@@ -413,33 +431,33 @@ if __name__ == "__main__":
     ivc.add_output('psfc', val=2.0e-7, units='kg/J')
 
     # Manta Aero Parameters
-    ivc.add_output('phi_50_manta', val=5.0, units='deg', desc='Manta 50% chord sweep angle')
+    ivc.add_output('phi_50_manta', val=18.0, units='deg', desc='Manta 50% chord sweep angle')
     ivc.add_output('cl_alpha_airfoil_manta', val=2*np.pi, units='1/rad', desc='Manta airfoil lift curve slope')
     ivc.add_output('aspect_ratio_manta', val=10.0, desc='Manta aspect ratio')
-    ivc.add_output('d_eps_manta_d_alpha', val=0.25, desc='Manta downwash derivative')
+    ivc.add_output('d_eps_manta_d_alpha', val=0.925, desc='Manta downwash derivative')
     ivc.add_output('alpha0_airfoil_manta', val=-2.0, units='deg', desc='Wing airfoil zero-lift angle')
     ivc.add_output('d_twist_manta', val=0.0, units='rad', desc='twist angle')
-    ivc.add_output('sweep_25_manta', val=12.0, units='deg', desc='Quarter-chord sweep angle')
+    ivc.add_output('sweep_25_manta', val=18.0, units='deg', desc='Quarter-chord sweep angle')
     ivc.add_output('Q_manta', val=1.1, desc='Interference factor')
-    ivc.add_output('S_exp_manta', val=50.0, units='m**2', desc='Exposed planform area')
+    ivc.add_output('S_exp_manta', val=120.0, units='m**2', desc='Exposed planform area')
     ivc.add_output('t_c_manta', val=0.19, desc='Thickness to chord ratio')
     ivc.add_output('tau_manta', val=0.8, desc='wing tip thickness to chord ratio / wing root thickness to chord ratio')
-    ivc.add_output('lambda_manta', val=0.45, desc='Wing taper ratio')
+    ivc.add_output('lambda_manta', val=0.1, desc='Wing taper ratio')
     ivc.add_output('k_lam_manta', val=0.1, desc='Laminar flow fraction')
     ivc.add_output('sweep_max_t_manta', val=10,units='deg', desc='Wing sweep at maximum thickness')
-    ivc.add_output('l_char_manta', val=1.0, units='m',desc='Characteristic length')
+    ivc.add_output('l_char_manta', val=7.6, units='m',desc='Characteristic length')
     ivc.add_output('h_winglet_manta', val=0.9, units='m', desc='Height above ground')
     ivc.add_output('span_manta', val=30.0, units='m', desc='Wing span')
     ivc.add_output('k_WL_manta', val=2.83, desc='Winglet effectiveness factor')
-    ivc.add_output('S_manta', val=100.0, units='m**2', desc='Manta reference area')
+    ivc.add_output('S_manta', val=120.0, units='m**2', desc='Manta reference area')
 
 
     # Ray Aero Parameters
-    ivc.add_output('S_ray', val=100.0, units='m**2', desc='Ray area')
+    ivc.add_output('S_ray', val=89.0, units='m**2', desc='Ray area')
     ivc.add_output('phi_50_ray', val=5.0, units='deg', desc='Ray 50% chord sweep angle')
     ivc.add_output('cl_alpha_airfoil_ray', val=2*np.pi, units='1/rad', desc='Ray airfoil lift curve slope')
     ivc.add_output('aspect_ratio_ray', val=10.0, desc='Ray aspect ratio')
-    ivc.add_output('d_eps_ray_d_alpha', val=0.25, desc='Ray downwash derivative')
+    ivc.add_output('d_eps_ray_d_alpha', val=0.05, desc='Ray downwash derivative')
     ivc.add_output('alpha0_airfoil_ray', val=-2.0, units='deg', desc='Ray airfoil zero-lift angle')
     ivc.add_output('d_twist_ray', val=0.0, units='rad', desc='twist angle')
     ivc.add_output('sweep_25_ray', val=12.0, units='deg', desc='Quarter-chord sweep angle')
@@ -447,25 +465,25 @@ if __name__ == "__main__":
     ivc.add_output('S_exp_ray', val=50.0, units='m**2', desc='Exposed planform area')
     ivc.add_output('t_c_ray', val=0.19, desc='Thickness to chord ratio')
     ivc.add_output('tau_ray', val=0.8, desc='wing tip thickness to chord ratio / wing root thickness to chord ratio')
-    ivc.add_output('lambda_ray', val=0.45, desc='Wing taper ratio')
+    ivc.add_output('lambda_ray', val=0.3, desc='Wing taper ratio')
     ivc.add_output('k_lam_ray', val=0.1, desc='Laminar flow fraction')
     ivc.add_output('sweep_max_t_ray', val=10,units='deg', desc='Wing sweep at maximum thickness')
-    ivc.add_output('l_char_ray', val=1.0, units='m',desc='Characteristic length')
-    ivc.add_output('h_winglet_ray', val=0.9, units='m', desc='Height above ground')
-    ivc.add_output('span_ray', val=30.0, units='m', desc='Wing span')
+    ivc.add_output('l_char_ray', val=1.28, units='m',desc='Characteristic length')
+    ivc.add_output('h_winglet_ray', val=1e-3, units='m', desc='Height above ground')
+    ivc.add_output('span_ray', val=26.0, units='m', desc='Wing span')
     ivc.add_output('k_WL_ray', val=2.83, desc='Winglet effectiveness factor')
 
     ## Mass Inputs
         # WingWeight inputs
     #ivc.add_output("w_mto", val=1.0, units="lbf", desc="Maximum takeoff weight")
-    q_cruise = 1.225 * 0.5 * 60**2
+    q_cruise = 1.225 * 0.5 * 80**2
     ivc.add_output("q_cruise", val=q_cruise, units="Pa", desc="Cruise dynamic pressure")
 
     
 
     # HorizontalTailWeight inputs
     # AvionicsWeight inputs
-    ivc.add_output("w_uav_manta", val=100, units="lbf", desc="Uninstalled avionics weight")
+    ivc.add_output("w_uav_manta", val=500, units="lbf", desc="Uninstalled avionics weight")
     ivc.add_output("w_uav_ray", val=100, units="lbf", desc="Uninstalled avionics weight")
 
     ivc.add_output("n_ult", val=3.75, desc="Ultimate load factor")
@@ -480,18 +498,13 @@ if __name__ == "__main__":
     ivc.add_output("l_n", val=1, units="ft", desc="Length of nose landing gear strut")
 
     # Electrical system inputs
-    ivc.add_output("p_elec", val=1000000.0, units="W")
-    ivc.add_output("p_bat", val=400000.0, units="W")
-    ivc.add_output("e_bat", val=1000000000.0, units="J")
-    ivc.add_output("p_motor", val=125000.0, units="W")
-    ivc.add_output("p_gen_unit", val=300000.0, units="W")
     ivc.add_output("n_motors", val=8.0)
     ivc.add_output("n_gens", val=2.0)
     ivc.add_output("n_turbines", val=2.0)
 
     ivc.add_output("manta_lambda_aft", val=0.7)
 
-    ivc.add_output("w_pay", val=6*100.0, units="lbf", desc="Payload weight")
+    ivc.add_output("w_pay", val=80*215.0, units="lbf", desc="Payload weight")
     
     # Power/energy densities
     ivc.add_output("sp_motor", val=5000.0, units="W/kg")
@@ -503,8 +516,8 @@ if __name__ == "__main__":
     ivc.add_output("sp_gen", val=3000.0, units="W/kg")
     
     # Fuel system inputs
-    v_fuel_gal = 100
-    ivc.add_output("v_fuel_tot", val=v_fuel_gal, units="galUS")
+    #v_fuel_gal = 100
+    #ivc.add_output("v_fuel_tot", val=v_fuel_gal, units="galUS")
     ivc.add_output("v_fuel_int", val=1e-9, units="galUS")
     ivc.add_output("n_tank", val=2.0)
     
@@ -514,10 +527,10 @@ if __name__ == "__main__":
     # Propeller inputs
 
     # Fuselage dimensions
-    ivc.add_output("l_cabin", val=100, units="ft")
-    ivc.add_output("w_cabin", val=10, units="ft")
-    ivc.add_output("l_aft_fuselage", val=10, units="ft")
-    ivc.add_output("w_aft_fuselage", val=10, units="ft")
+    ivc.add_output("l_cabin", val=8 *3.084, units="ft")
+    ivc.add_output("w_cabin", val=19.6, units="ft")
+    ivc.add_output("l_aft_fuselage", val=3*3.048, units="ft")
+    ivc.add_output("w_aft_fuselage", val=19.6, units="ft")
 
     
     # Mission parameters
@@ -599,7 +612,6 @@ if __name__ == "__main__":
     prob.model.connect('gamma_climb', 'climb.gamma')
 
     prob.model.connect('gamma_cruise', 'cruise.gamma')
-    prob.model.connect('target_range', 'cruise.target_range')
     prob.model.connect('aspect_ratio_manta', ['climb.manta.aspect_ratio','manta_weight.ar_w'])
     prob.model.connect('aspect_ratio_ray', ['climb.ray.aspect_ratio','ray_weight.ar_w'])
     prob.model.connect('duration', 'climb.duration')
@@ -727,15 +739,6 @@ if __name__ == "__main__":
     # Propulsion system parameters
     prob.model.connect('eta_pe', 'cruise.eta_pe')
     prob.model.connect('eta_motor', 'cruise.eta_motor')
-    #prob.model.connect('eta_gen', 'cruise.eta_gen')
-
-
-
-
-
-
-
-
 
 
     prob.model.connect('k_lam_manta', ['climb.manta.wing.k_lam','cruise.wing.k_lam'])
@@ -752,11 +755,6 @@ if __name__ == "__main__":
 
     prob.model.connect('t_c_manta', ['climb.manta.t_c','cruise.t_c','manta_weight.t_c_w'])
     prob.model.connect('t_c_ray', ['climb.ray.t_c','ray_weight.t_c_w'])
-
-
-
-
-
     prob.model.connect('tau_manta', ['climb.manta.tau','cruise.tau'])
     prob.model.connect('tau_ray', 'climb.ray.tau')    
 
@@ -770,68 +768,79 @@ if __name__ == "__main__":
     prob.model.connect('num_ducts', ['climb.manta.num_ducts','cruise.num_ducts','n_motors_manta'])
     prob.model.connect('num_pods', ['climb.ray.num_pods','n_motors_ray'])
 
-
-
-
-
     prob.model.connect('od_duct', ['climb.manta.od_duct','cruise.od_duct'])
     prob.model.connect('id_duct', ['climb.manta.id_duct','cruise.id_duct'])
     prob.model.connect('c_duct', ['climb.manta.c_duct','cruise.c_duct'])
 
 
 
-
-
-    #prob.model.connect('S_manta', 'S_manta')
-
-
-
-
-
-
-
-
-    # Connect ducted fan
-
-
-    #prob.model.connect('eta_prop', 'propeller.eta_prop')
-    #prob.model.connect('eta_fan', 'ductedfan.eta_fan')
-    #prob.model.connect('eta_duct', 'ductedfan.eta_duct')
-
-
-    # Connect propeller
     #prob.model.connect('n_prplsrs', 'propeller.n_motors')
     prob.model.connect('k_prplsr', ['ray_weight.prop_weight.k_prplsr','manta_weight.compute_fan_weight.k_prplsr'])
 
 
-    #prob.model.connect('w_fuel', 'manta_weight.w_fuel')
+    model = prob.model
+    # Setup optimization
+    prob.driver = om.pyOptSparseDriver()
+    prob.driver.options['optimizer'] = 'IPOPT'
+    
+    # Define design variable
+    model.add_design_var('mto_manta', lower=8600, upper=99999, units='kg',ref = 100000)
+    model.add_design_var('ray_mass_ratio', lower=1e-3, upper=0.99)
+    model.add_design_var('duration', lower=100.0, upper=59.5*60.0, units='s',ref=3600)
+    
+    #model.add_constraint('ray_battery_mass_fraction.fraction_margin', lower=1e-3)
+    #model.add_constraint('manta_battery_mass_fraction.fraction_margin', lower=1e-3)
+    model.add_constraint('climb.z1_margin', upper  = 30)
+    model.add_constraint('mantaray_mtom_margin.mtom_margin', upper=100)
 
+    # Define objective
+    model.add_objective('cruise.range',scaler = -1)
 
-    #prob.model.connect('')
-
-
-
-
+    
+    # Setup recorder
+    recorder = om.SqliteRecorder('toc_cases.sql')
+    prob.driver.add_recorder(recorder)
+    prob.driver.recording_options['includes'] = ['*']
+    prob.driver.recording_options['record_objectives'] = True
+    prob.driver.recording_options['record_desvars'] = True
 
 
     # Setup problem
     prob.setup()
-    om.n2(prob)
+    #om.n2(prob)
 
     # Run model
     prob.run_model()
+
+    prob.run_driver()
+
+
+    
+    print("\n=== Key Results ===")
+    print(f"Manta-Ray System MTOM: {prob['sum_MTOW.manta_ray_mto_calc'][0]/9.806:.0f} kg")
+
+    print(f"Manta MTOM: {prob['manta_weight.w_mto_calc'][0]/9.806:.0f} kg")
+    print(f"Ray MTOM: {prob['ray_weight.mto_calc'][0]/9.806:.0f} kg")
+    print("\nPower Requirements:")
+
+    print(f"Manta Unit Power: {prob['p_shaft_manta_climb'][0]/1000:.0f} kW")
+    print(f"Ray Unit Power: {prob['p_shaft_ray_climb'][0]/1000:.0f} kW")
+    print(f"\nRange: {prob['cruise.range'][0]/1000:.0f} km")
+
+    print(f"Duration (min): {prob['duration'][0]/60:.0f}")
+
+
+
+    print("\nBattery Mass Fractions:")
+    print(f"Manta: {(1 - prob['manta_battery_mass_fraction.fraction_margin']):.3f}")
+    print(f"Ray: {(1 - prob['ray_battery_mass_fraction.fraction_margin']):.3f}")
+
+
+
+
     
     # Print results
-    print("\nManta-Ray Sizing Results:")
-    print("------------------------")
-    print("Climb Phase:")
-    print(f"Power required: {prob.get_val('power_required')[0]/1000:.1f} kW")
-    
-    print("\nCruise Phase:")
-    print(f"Range: {prob.get_val('cruise.range')[0]/1000:.1f} km")
-    print(f"L/D: {prob.get_val('cruise.CL_manta_ray')[0]/prob.get_val('cruise.CD_manta_ray')[0]:.1f}")
-    print(f"Thrust per fan: {prob.get_val('cruise.thrust_unit')[0]/1000:.1f} kN")
-    print(f"Power per fan: {prob.get_val('cruise.power')[0]/1000:.1f} kW")
+
     
     # Check partials
-    prob.check_partials(compact_print=True) 
+    #prob.check_partials(compact_print=True) 

@@ -64,7 +64,7 @@ class InducedDrag(om.ExplicitComponent):
 
         partials['CDi', 'aspect_ratio'] = -(0.3183*(CL - CL0)**2)/(aspect_ratio**2*oswald_no)
 
-        partials['CDi', 'oswald_no'] = np.eye(N) * -(0.3183*(CL - CL0)**2)/(aspect_ratio*oswald_no**2)
+        partials['CDi', 'oswald_no'] =  -(0.3183*(CL - CL0)**2)/(aspect_ratio*oswald_no**2)
 
         partials['CDi', 'CL0'] = np.eye(N) * -(0.3183*(2*CL - 2*CL0))/(aspect_ratio*oswald_no)
 # end

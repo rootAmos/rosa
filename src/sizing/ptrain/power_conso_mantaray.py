@@ -118,8 +118,9 @@ class ElecPowerMantaRay(om.ExplicitComponent):
         partials['manta_elec_power', 'eta_cable_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_ducts'] / (manta_efficiency**2) * inputs['eta_motor_manta'] * inputs['eta_inverter_manta']
         
         # Total power partials
-        partials['total_elec_power', 'ray_elec_power'] = 1.0
-        partials['total_elec_power', 'manta_elec_power'] = 1.0
+        #partials['total_elec_power', 'ray_elec_power'] = np.eye(N)
+        #partials['total_elec_power', 'manta_elec_power'] = np.eye(N)
+
 
 class EnergyConso(om.ExplicitComponent):
     """
@@ -217,19 +218,26 @@ class EnergyConso(om.ExplicitComponent):
         
         # Battery energy partials (now scalar)
         time = np.linspace(0, inputs['duration'], N).flatten()
-        partials['ray_battery_energy', 'ray_battery_power'] = trapezoid(1.0 / inputs['eta_battery'], time, axis=0)
-        partials['ray_battery_energy', 'eta_battery'] = -trapezoid(inputs['ray_battery_power'] / (inputs['eta_battery']**2), time, axis=0)
-        partials['ray_battery_energy', 'duration'] = inputs['ray_battery_power'] / inputs['eta_battery']
-        
+        ray_battery_power = inputs['total_elec_power'] * inputs['ray_energy_ratio']
+
+        #partials['ray_battery_energy', 'ray_battery_power'] = trapezoid(np.ones(N) / inputs['eta_battery'], time, axis=0)
+        partials['ray_battery_energy', 'eta_battery'] = -trapezoid(ray_battery_power / (inputs['eta_battery']**2), time, axis=0)
+        partials['ray_battery_energy', 'duration'] = np.sum(ray_battery_power / inputs['eta_battery']) / N
+
+        turbogen_power = inputs['total_elec_power'] * (1.0 - inputs['ray_energy_ratio']) / (inputs['eta_generator'] * inputs['eta_gen_inverter'])
+
         # Fuel mass partials (scalar)
         gen_efficiency = inputs['eta_generator'] * inputs['eta_gen_inverter']
-        fuel_conso = trapezoid(inputs['turbogen_power'] * inputs['psfc'], time, axis=0)
+        fuel_conso = trapezoid(turbogen_power * inputs['psfc'], time, axis=0)
         
-        partials['manta_fuel_mass', 'turbogen_power'] = trapezoid(inputs['psfc'] / gen_efficiency, time, axis=0)
-        partials['manta_fuel_mass', 'duration'] = inputs['turbogen_power'] * inputs['psfc'] / gen_efficiency
+        #partials['manta_fuel_mass', 'turbogen_power'] = np.sum(inputs['psfc'] / gen_efficiency) / N
+        partials['manta_fuel_mass', 'duration'] = np.sum(turbogen_power * inputs['psfc'] / gen_efficiency) / N
         partials['manta_fuel_mass', 'eta_generator'] = -fuel_conso / inputs['eta_generator']
+
+
         partials['manta_fuel_mass', 'eta_gen_inverter'] = -fuel_conso / inputs['eta_gen_inverter']
-        partials['manta_fuel_mass', 'psfc'] = trapezoid(inputs['turbogen_power'] / gen_efficiency, time, axis=0)
+        partials['manta_fuel_mass', 'psfc'] = np.sum(turbogen_power / gen_efficiency) / N
+
 
 class PowerConsoGroup(om.Group):
     """

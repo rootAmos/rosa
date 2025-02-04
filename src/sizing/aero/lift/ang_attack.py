@@ -96,9 +96,9 @@ class AngleOfAttack(om.ExplicitComponent):
 
         partials['alpha', 'u'] = np.eye(N)*-(4*lift)/(CL_alpha*S_ref*rho*u**3)
 
-        partials['alpha', 'CL0'] = -1/CL_alpha
+        partials['alpha', 'CL0'] = np.eye(N)*-1/CL_alpha
 
-        partials['alpha', 'CL_alpha'] = (CL0 - (2*lift)/(S_ref*rho*u**2))/CL_alpha**2
+        partials['alpha', 'CL_alpha'] = np.eye(N)*(CL0 - (2*lift)/(S_ref*rho*u**2))/CL_alpha**2
 
         partials['alpha', 'lift'] = np.eye(N)*2/(CL_alpha*S_ref*rho*u**2)
 

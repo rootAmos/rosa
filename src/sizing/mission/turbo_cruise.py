@@ -57,8 +57,6 @@ class ComputeTurboCruiseRange(om.ExplicitComponent):
                       desc="Shaft power specific fuel consumption")
         self.add_input("w_mto", val=1.0, units="N",
                       desc="Maximum takeoff weight")
-        self.add_input("target_range", val=1.0, units="m",
-                      desc="Target range")
         self.add_input("w_fuel", val=1.0, units="N",
                       desc="Fuel weight")
         

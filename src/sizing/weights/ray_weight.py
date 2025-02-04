@@ -549,7 +549,7 @@ class RayWeight(om.Group):
                         'w_systems'
                     ],
                         desc='Total zero-angle lift coefficient',
-                        vec_size=1)
+                        vec_size=1, units="N")
         self.add_subsystem('sum', adder, promotes=['*'])
 
         

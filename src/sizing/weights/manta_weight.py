@@ -610,9 +610,8 @@ class AircraftWeight(om.ExplicitComponent):
 
 
         partials["w_airframe", "w_wing"] = 1.0
-        partials["w_airframe", "w_fuselage"] = 1.0
-        partials["w_airframe", "w_htail"] = 1.0
-        partials["w_airframe", "w_vtail"] = 1.0
+        partials["w_airframe", "w_aft_fuselage"] = 1.0
+        partials["w_airframe", "w_front_fuselage"] = 1.0
         partials["w_empty", "w_hybrid_ptrain"] = 1.0
         partials["w_empty", "w_pay"] = 1.0
         partials["w_empty", "w_systems"] = 1.0
