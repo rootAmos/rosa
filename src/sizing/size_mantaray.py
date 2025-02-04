@@ -791,7 +791,8 @@ if __name__ == "__main__":
     #model.add_constraint('ray_battery_mass_fraction.fraction_margin', lower=1e-3)
     #model.add_constraint('manta_battery_mass_fraction.fraction_margin', lower=1e-3)
     model.add_constraint('climb.z1_margin', upper  = 30)
-    model.add_constraint('mantaray_mtom_margin.mtom_margin', upper=100)
+    #model.add_design_var('m_fuel_manta_mission', lower=100,upper = 9999,ref = 10000)
+    #model.add_constraint('mantaray_mtom_margin.mtom_margin', upper=100)
 
     # Define objective
     model.add_objective('cruise.range',scaler = -1)
@@ -829,11 +830,17 @@ if __name__ == "__main__":
 
     print(f"Duration (min): {prob['duration'][0]/60:.0f}")
 
-
-
+    import pdb
+    #pdb.set_trace()
+    ray_bat_mass_frac = prob['ray_weight.w_bat']/prob['ray_weight.mto_calc']
+    manta_bat_mass_frac = prob['manta_weight.hybrid_ptrain_weight.compute_elec_ptrain_weight.w_bat']/prob['manta_weight.w_mto_calc']
     print("\nBattery Mass Fractions:")
-    print(f"Manta: {(1 - prob['manta_battery_mass_fraction.fraction_margin']):.3f}")
-    print(f"Ray: {(1 - prob['ray_battery_mass_fraction.fraction_margin']):.3f}")
+    print(f"Ray: {(ray_bat_mass_frac)[0]:.3f}")
+
+    pdb.set_trace()
+
+
+
 
 
 
