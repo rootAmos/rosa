@@ -18,9 +18,9 @@ class ClimbVectors(om.ExplicitComponent):
         N = self.options['N']
         
         # Inputs
-        self.add_input('u_eas', val=80.0, units='m/s')
-        self.add_input('gamma', val=5.0 * np.ones(N), units='rad')
-        self.add_input('rho', val=1.225*np.ones(N), units='kg/m**3')
+        self.add_input('u_eas', val=1.0, units='m/s')
+        self.add_input('gamma', val=1.0 * np.ones(N), units='rad')
+        self.add_input('rho', val=1.0*np.ones(N), units='kg/m**3')
         
         # Outputs
         self.add_output('u', val=np.ones(N), units='m/s')

@@ -38,6 +38,7 @@ class ComputeTurboCruiseRange(om.ExplicitComponent):
     Computes cruise range based on fuel weight using the Breguet range equation
     """
     
+    
     def setup(self):
         # Inputs
         self.add_input("cl", val=1.0, units=None,

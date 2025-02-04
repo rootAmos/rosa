@@ -6,23 +6,31 @@ class ComputeUnitThrust(om.ExplicitComponent):
     Compute the thrust required per ducted fan unit by dividing total thrust by number of fans.
     """
 
+    def initialize(self):
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
+
+        N = self.options['N']
         # Inputs
-        self.add_input('thrust_total', val=1.0, desc='total thrust required', units='N')
-        self.add_input('n_fans', val=1.0, desc='number of fans', units=None)
+        self.add_input('thrust_total', val=1.0 * np.ones(N), desc='total thrust required', units='N')
+        self.add_input('num_ducts', val=1.0, desc='number of fans', units=None)
+
 
         # Outputs
-        self.add_output('thrust_unit', val=1.0, desc='thrust required per fan', units='N')
+        self.add_output('thrust_unit', val=1.0 * np.ones(N), desc='thrust required per fan', units='N')
 
     def setup_partials(self):
-        self.declare_partials('thrust_unit', ['thrust_total', 'n_fans'])
+        self.declare_partials('thrust_unit', ['thrust_total', 'num_ducts'])
 
     def compute(self, inputs, outputs):
-        outputs['thrust_unit'] = inputs['thrust_total'] / inputs['n_fans']
+        outputs['thrust_unit'] = inputs['thrust_total'] / inputs['num_ducts']
 
     def compute_partials(self, inputs, partials):
-        partials['thrust_unit', 'thrust_total'] = 1.0 / inputs['n_fans']
-        partials['thrust_unit', 'n_fans'] = -inputs['thrust_total'] / inputs['n_fans']**2
+        N = self.options['N']
+        partials['thrust_unit', 'thrust_total'] = np.eye(N) * 1.0 / inputs['num_ducts']
+
+        partials['thrust_unit', 'num_ducts'] = -inputs['thrust_total'] / inputs['num_ducts']**2
 
 
 
@@ -53,7 +61,7 @@ class ComputeDuctedFan(om.ExplicitComponent):
         self.add_input('epsilon_r', val=1, desc='expansion ratio', units=None)
         self.add_input('eta_fan', val=1, desc='fan efficiency', units=None)
         self.add_input('eta_duct', val=1, desc='duct efficiency', units=None)
-        self.add_input('n_fans', val=1, desc='number of fans', units=None)
+        self.add_input('num_ducts', val=1, desc='number of fans', units=None)
 
         # Outputs
         self.add_output('p_shaft_unit', val=1 * np.ones(N), desc='power required per engine', units='W')

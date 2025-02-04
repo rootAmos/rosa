@@ -45,7 +45,7 @@ class GroupCLMantaRay(om.Group):
         N = self.options['N']
 
         self.add_subsystem('lift_req', LiftRequired(N=N),
-                          promotes_inputs=['*'],
+                          promotes_inputs=['gamma'],
                           promotes_outputs=['*'])
 
                 # Step 3: Lift curve slopes

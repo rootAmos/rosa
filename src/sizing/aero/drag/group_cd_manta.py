@@ -29,7 +29,7 @@ class GroupCDManta(om.Group):
 
         N = self.options['N']
         # Wing induced drag
-        self.add_subsystem('cdi_manta', GroupCDiManta(ray=1, N=N), promotes_inputs=['*'], promotes_outputs=['*'])   
+        self.add_subsystem('cdi_manta', GroupCDiManta(ray=self.options['ray'], N=N), promotes_inputs=['*'], promotes_outputs=['*'])   
         self.add_subsystem('cd0_manta', GroupCD0Manta(N=N), promotes_inputs=['*'], promotes_outputs=['*'])
         self.add_subsystem('wave_drag', WaveDrag(N=N), promotes_inputs=['*'], promotes_outputs=['*'])
         # end

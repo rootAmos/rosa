@@ -12,7 +12,7 @@ class ThrustDistribution(om.ExplicitComponent):
             Ratio of Ray thrust to total thrust [-]
         num_pods : float
             Number of Ray motors [-]
-        num_fans : float
+        num_ducts : float
             Number of Manta motors [-]
             
     Outputs:
@@ -41,7 +41,7 @@ class ThrustDistribution(om.ExplicitComponent):
                       desc='Ray thrust / total thrust')
         self.add_input('num_pods', val=1.0,
                       desc='Number of Ray motors')
-        self.add_input('num_fans', val=1.0,
+        self.add_input('num_ducts', val=1.0,
                       desc='Number of Manta motors')
         
         # Outputs
@@ -67,7 +67,7 @@ class ThrustDistribution(om.ExplicitComponent):
         
         # Compute unit thrusts
         outputs['ray_thrust_unit'] = outputs['ray_thrust_total'] / inputs['num_pods']
-        outputs['manta_thrust_unit'] = outputs['manta_thrust_total'] / inputs['num_fans']
+        outputs['manta_thrust_unit'] = outputs['manta_thrust_total'] / inputs['num_ducts']
         
     def compute_partials(self, inputs, partials):
 
@@ -75,20 +75,20 @@ class ThrustDistribution(om.ExplicitComponent):
         thrust_req = inputs['thrust_required']
         thrust_ratio = inputs['thrust_ratio']
         num_pods = inputs['num_pods']
-        num_fans = inputs['num_fans']
+        num_ducts = inputs['num_ducts']
         
         # Ray total thrust partials
         partials['ray_thrust_total', 'thrust_required'] = np.eye(N) * thrust_ratio
         partials['ray_thrust_total', 'thrust_ratio'] = np.eye(N) * thrust_req
         partials['ray_thrust_total', 'num_pods'] =  0.0
-        partials['ray_thrust_total', 'num_fans'] = 0.0
+        partials['ray_thrust_total', 'num_ducts'] = 0.0
         
 
         # Manta total thrust partials
         partials['manta_thrust_total', 'thrust_required'] = np.eye(N) * (1.0 - thrust_ratio)
         partials['manta_thrust_total', 'thrust_ratio'] = np.eye(N) * -thrust_req
         partials['manta_thrust_total', 'num_pods'] = 0.0
-        partials['manta_thrust_total', 'num_fans'] = 0.0
+        partials['manta_thrust_total', 'num_ducts'] = 0.0
         
 
         # Ray unit thrust partials
@@ -96,10 +96,10 @@ class ThrustDistribution(om.ExplicitComponent):
         partials['ray_thrust_unit', 'thrust_ratio'] = np.eye(N) * thrust_req / num_pods
         partials['ray_thrust_unit', 'num_pods'] =  -thrust_req * thrust_ratio / (num_pods**2)
 
-        partials['ray_thrust_unit', 'num_fans'] = 0.0
+        partials['ray_thrust_unit', 'num_ducts'] = 0.0
         
         # Manta unit thrust partials
-        partials['manta_thrust_unit', 'thrust_required'] = np.eye(N) * (1.0 - thrust_ratio) / num_fans
-        partials['manta_thrust_unit', 'thrust_ratio'] = np.eye(N) * -thrust_req / num_fans
+        partials['manta_thrust_unit', 'thrust_required'] = np.eye(N) * (1.0 - thrust_ratio) / num_ducts
+        partials['manta_thrust_unit', 'thrust_ratio'] = np.eye(N) * -thrust_req / num_ducts
         partials['manta_thrust_unit', 'num_pods'] = 0.0
-        partials['manta_thrust_unit', 'num_fans'] = -thrust_req * (1.0 - thrust_ratio) / (num_fans**2) 
+        partials['manta_thrust_unit', 'num_ducts'] = -thrust_req * (1.0 - thrust_ratio) / (num_ducts**2) 

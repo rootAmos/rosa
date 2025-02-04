@@ -19,42 +19,34 @@ from src.sizing.aero.drag.drag_force import DragForce
 from src.sizing.mission.mach_number import MachNumber
 from src.sizing.mission.atmos import ComputeAtmos
 
+from src.sizing.weights.mass_weight_conv import WeightToMass, MassToWeight
 
-class Weight(om.ExplicitComponent):
-    """
 
-    Computes weight (force) from mass using W = mg
-    """
-    
+
+class Averager(om.ExplicitComponent):
     def initialize(self):
-        self.options.declare('g', default=9.806, desc='Gravitational acceleration (m/s^2)')
-        
+        self.options.declare('N', default=1, desc='Number of nodes')
+
     def setup(self):
-        # Inputs
-        self.add_input('mass', val=1.0, units='kg',
-                      desc='Mass of object')
+        N = self.options['N']
+
+        self.add_input('vector', val=1.0 * np.ones(N), desc='Vector to average')
         
-        # Outputs
-        self.add_output('weight', val=1.0, units='N',
-                      desc='Weight (force) of object')
-        
-        # Declare partials
-        self.declare_partials('weight', 'mass')
+        self.add_output('avg', desc='Average of vector')
+
+        self.declare_partials('*', '*')
         
     def compute(self, inputs, outputs):
-        g = self.options['g']
-        
-        outputs['weight'] = inputs['mass'] * g
-        
-    def compute_partials(self, inputs, partials):
-        g = self.options['g']
-        
-        partials['weight', 'mass'] = g
+        outputs['avg'] = np.mean(inputs['vector'])
 
+
+    def compute_partials(self, inputs, partials):
+        partials['avg', 'vector'] = 1.0/self.options['N']
 
 
 class CruiseRequirements(om.Group):
     """
+
 
     Group that computes cruise requirements:
     1. Required lift force
@@ -90,7 +82,7 @@ class CruiseRequirements(om.Group):
         # Add lift requirement computation
         self.add_subsystem('lift_req',
                           LiftRequired(N=N),
-                          promotes_inputs=['*'],
+                          promotes_inputs=['gamma'],
                           promotes_outputs=['*'])
 
 
@@ -118,7 +110,7 @@ class CruiseRequirements(om.Group):
 
         # Add unit thrust computation
         self.add_subsystem('unit_thrust',
-                          ComputeUnitThrust(),
+                          ComputeUnitThrust(N=N),
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
 
@@ -126,7 +118,7 @@ class CruiseRequirements(om.Group):
         self.add_subsystem('ductedfan',
                           ComputeDuctedFan(N=N),
                           promotes_inputs=['*'],
-                          promotes_outputs=['*'])
+                          promotes_outputs=['p_shaft_unit'])
 
         # Add propulsive efficiency calculation
         self.add_subsystem('prop_eff',
@@ -134,23 +126,48 @@ class CruiseRequirements(om.Group):
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
         
-        self.add_subsystem('weight_mto', Weight(g=9.806), promotes_inputs=[], promotes_outputs=[])
-        self.add_subsystem('weight_fuel', Weight(g=9.806), promotes_inputs=[], promotes_outputs=[])
+        self.add_subsystem('weight_mto', MassToWeight(g=9.806), promotes_inputs=[], promotes_outputs=[])
+        #self.add_subsystem('weight_fuel', Weight(g=9.806), promotes_inputs=[], promotes_outputs=[])
 
+        self.add_subsystem('cl_avg', 
+                           Averager(N=N), 
+                           promotes_inputs=[], 
+                           promotes_outputs=[])
+        
+        self.add_subsystem('cd_avg', 
+                           Averager(N=N), 
+                           promotes_inputs=[], 
+                           promotes_outputs=[])
+        
+        self.add_subsystem('eta_prplsv_avg', 
+                           Averager(N=N), 
+                           promotes_inputs=[], 
+                           promotes_outputs=[]) 
 
         # Add cruise range computation
+
         self.add_subsystem('range',
                           ComputeTurboCruiseRange(),
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
 
         # Connect lift and drag coefficients
-        self.connect('CL', 'cl')
-        self.connect('CD_manta', ['cd','CD'])
-        
+
+        self.connect('CL', 'cl_avg.vector')
+        self.connect('CD_manta', ['cd_avg.vector','CD'])
+
+        self.connect('cl_avg.avg', 'cl')
+        self.connect('cd_avg.avg', 'cd')
+
+        self.connect('ductedfan.eta_prplsv', 'eta_prplsv_avg.vector')
+        self.connect('eta_prplsv_avg.avg', 'eta_prplsv')
+
+
+
         # Connect thrust distribution
-        self.connect('weight_mto.weight', 'w_mto')
-        self.connect('weight_fuel.weight', 'w_fuel')
+
+        #self.connect('weight_mto.weight', 'w_mto')
+        #self.connect('weight_fuel.weight', 'w_fuel')
 
         self.connect('drag', 'thrust_total')
 
@@ -183,7 +200,7 @@ if __name__ == "__main__":
     ivc.add_output('m_fuel', val=600.0, units='kg')
     
     # Thrust distribution parameters
-    ivc.add_output('n_fans', val=2)
+    ivc.add_output('num_ducts', val=2)
     
     # Ducted fan parameters
     ivc.add_output('d_blades', val=1.5, units='m')

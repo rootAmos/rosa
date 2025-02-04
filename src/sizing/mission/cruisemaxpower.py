@@ -19,7 +19,7 @@ class CruiseMaxpower(om.Group):
         # Add unit thrust calculation
         self.add_subsystem("unit_thrust",
                           ComputeUnitThrust(),
-                          promotes_inputs=["n_fans"],
+                          promotes_inputs=["num_ducts"],
                           promotes_outputs=["thrust_unit"])
         
         # Add ducted fan calculation

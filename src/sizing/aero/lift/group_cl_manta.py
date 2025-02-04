@@ -46,10 +46,11 @@ class GroupCLManta(om.Group):
 
         # Step 2: Zero-angle lift coefficients
         self.add_subsystem('cl0',
-                          GroupCL0(),
+                          GroupCL0(N=N),
                           promotes_inputs=['*'],
                           promotes_outputs=['*'])
         
+
 
         self.add_subsystem('alpha', AngleOfAttack(N=N), promotes_inputs=['*'],
                      promotes_outputs=['*'])

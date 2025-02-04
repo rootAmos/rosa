@@ -16,7 +16,7 @@ class ElecPowerMantaRay(om.ExplicitComponent):
             Shaft power per Manta motor [W]
         num_pods : float
             Number of Ray motors [-]
-        num_fans : float
+        num_ducts : float
             Number of Manta motors [-]
         eta_motor_ray : float
             Ray motor efficiency [-]
@@ -50,7 +50,7 @@ class ElecPowerMantaRay(om.ExplicitComponent):
         self.add_input('r_shaft_power_unit', val=1.0 * np.ones(N), units='W')
         self.add_input('m_shaft_power_unit', val=1.0 * np.ones(N), units='W')
         self.add_input('num_pods', val=1.0)
-        self.add_input('num_fans', val=1.0)
+        self.add_input('num_ducts', val=1.0)
         
 
         # Inputs - Efficiencies
@@ -85,7 +85,7 @@ class ElecPowerMantaRay(om.ExplicitComponent):
                           inputs['eta_cable_manta'])
         
         outputs['manta_elec_power'] = (inputs['m_shaft_power_unit'] * 
-                                      inputs['num_fans'] / manta_efficiency)
+                                      inputs['num_ducts'] / manta_efficiency)
         
         # Total electrical power
         outputs['total_elec_power'] = (outputs['ray_elec_power'] + 
@@ -111,11 +111,11 @@ class ElecPowerMantaRay(om.ExplicitComponent):
                           inputs['eta_inverter_manta'] * 
                           inputs['eta_cable_manta'])
         
-        partials['manta_elec_power', 'm_shaft_power_unit'] =np.eye(N) * inputs['num_fans'] / manta_efficiency
-        partials['manta_elec_power', 'num_fans'] = inputs['m_shaft_power_unit'] / manta_efficiency
-        partials['manta_elec_power', 'eta_motor_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_fans'] / (manta_efficiency**2) * inputs['eta_inverter_manta'] * inputs['eta_cable_manta']
-        partials['manta_elec_power', 'eta_inverter_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_fans'] / (manta_efficiency**2) * inputs['eta_motor_manta'] * inputs['eta_cable_manta']
-        partials['manta_elec_power', 'eta_cable_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_fans'] / (manta_efficiency**2) * inputs['eta_motor_manta'] * inputs['eta_inverter_manta']
+        partials['manta_elec_power', 'm_shaft_power_unit'] =np.eye(N) * inputs['num_ducts'] / manta_efficiency
+        partials['manta_elec_power', 'num_ducts'] = inputs['m_shaft_power_unit'] / manta_efficiency
+        partials['manta_elec_power', 'eta_motor_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_ducts'] / (manta_efficiency**2) * inputs['eta_inverter_manta'] * inputs['eta_cable_manta']
+        partials['manta_elec_power', 'eta_inverter_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_ducts'] / (manta_efficiency**2) * inputs['eta_motor_manta'] * inputs['eta_cable_manta']
+        partials['manta_elec_power', 'eta_cable_manta'] = -inputs['m_shaft_power_unit'] * inputs['num_ducts'] / (manta_efficiency**2) * inputs['eta_motor_manta'] * inputs['eta_inverter_manta']
         
         # Total power partials
         partials['total_elec_power', 'ray_elec_power'] = 1.0
@@ -270,7 +270,7 @@ if __name__ == "__main__":
     ivc.add_output('r_shaft_power_unit', val=50000.0 * np.ones(N), units='W')
     ivc.add_output('m_shaft_power_unit', val=75000.0 * np.ones(N), units='W')
     ivc.add_output('num_pods', val=6)
-    ivc.add_output('num_fans', val=4)
+    ivc.add_output('num_ducts', val=4)
 
     ivc.add_output('eta_motor_ray', val=0.95)
     ivc.add_output('eta_motor_manta', val=0.95)

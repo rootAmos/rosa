@@ -38,10 +38,11 @@ class ComputeHover(om.ExplicitComponent):
                        desc="Total bat hover energy required")
         self.add_output("p_bat", units="W",
                        desc="Maximum bat power required")
-        self.add_output("p_gen_unit", units="W",
+        self.add_output("p_gen_unit", units="W",val=1.0,
                        desc="Maximum power per generator")
-        self.add_output("p_turbine_unit", units="W",
+        self.add_output("p_turbine_unit", units="W",val=1.0,
                        desc="Gas turbine power required")
+
         self.add_output("p_motor", units="W",
                        desc="Unit motor power required")
         self.add_output("p_elec", units="W",

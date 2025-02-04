@@ -9,7 +9,7 @@ from weights.formatmassresults import FormatMassResults
 from hover.computehover import HoverEnergyAnalysis
 from cruise.cruisemaxpower import CruiseMaxpower
 from cruise.cruisemaxefficiency import CruiseMaxEfficiency
-from weights.computeweights import ComputeWeights
+from src.sizing.weights.manta_weight import ComputeWeights
 from atmos.computeamos import ComputeAtmos
 from computeturbocruiserange import ComputeTurboCruiseRange
 from plotoptimization import plot_optimization_history
@@ -46,7 +46,7 @@ class SolveAircraft(om.Group):
         # Add hover power and energy calculation
 
         # Fix Fuel ambiguity
-        self.set_input_defaults("w_fuel", val=150*9.81, units="N")
+        #self.set_input_defaults("w_fuel", val=150*9.81, units="N")
 
         self.add_subsystem("atmos", ComputeAtmos(), 
                            promotes_inputs=["*"], 
@@ -57,11 +57,11 @@ class SolveAircraft(om.Group):
                           promotes_inputs=["*"], promotes_outputs=["*"])
         
         self.add_subsystem("cruisemaxpow", CruiseMaxpower(), 
-                           promotes_inputs=["cd0","e","s_ref","gamma","rho","w_mto","epsilon_r","ar_w","eta_fan","eta_duct","n_fans"], 
+                           promotes_inputs=["cd0","e","s_ref","gamma","rho","w_mto","epsilon_r","ar_w","eta_fan","eta_duct","num_ducts"], 
                            promotes_outputs=[])
         
         self.add_subsystem("cruisemaxeff", CruiseMaxEfficiency(), 
-                           promotes_inputs=["cd0","e","s_ref","gamma","rho","w_mto","epsilon_r","ar_w","eta_fan","eta_duct","n_fans"], 
+                           promotes_inputs=["cd0","e","s_ref","gamma","rho","w_mto","epsilon_r","ar_w","eta_fan","eta_duct","num_ducts"], 
                            promotes_outputs=["eta_pt"])
 
         
@@ -183,17 +183,17 @@ if __name__ == "__main__":
     n_motors = n_lift_motors + n_crz_motors
 
     ivc.add_output("n_props", val=n_lift_motors)
-    ivc.add_output("d_prop_blades", val=2.5, units="m")
+    ivc.add_output("d_blades_prop", val=2.5, units="m")
     ivc.add_output("d_prop_hub", val=0.5, units="m")
     ivc.add_output("k_prplsr", val=31.92)
-    ivc.add_output("n_prop_blades", val=5.0)
+    ivc.add_output("n_blades_prop", val=5.0)
 
     # Ducted fan inputs
-    ivc.add_output("d_fan_blades", val=2.5, units="m")
+    ivc.add_output("d_blades_duct", val=2.5, units="m")
     ivc.add_output("d_fan_hub", val=0.5, units="m")
-    ivc.add_output("n_fans", val=n_crz_motors)
+    ivc.add_output("num_ducts", val=n_crz_motors)
     ivc.add_output("k_fan", val=31.92)
-    ivc.add_output("n_fan_blades", val=5.0)
+    ivc.add_output("n_blades_fan", val=5.0)
     ivc.add_output("epsilon_r", val=1.2, units=None)
 
     # Performance Inputs
@@ -241,17 +241,17 @@ if __name__ == "__main__":
 
     # Connect Variables
     model.connect("k_prplsr", "compute_prop_weight.k_prplsr")
-    model.connect("n_prop_blades", "compute_prop_weight.n_blades")
+    model.connect("n_blades_prop", "compute_prop_weight.n_blades")
     model.connect("n_props", ["computehover.n_lift_props","hoverpropeller.n_motors", "compute_prop_weight.n_prplsrs"])
     model.connect("d_prop_hub","hoverpropeller.d_hub")
-    model.connect("d_prop_blades", ["hoverpropeller.d_blades","compute_prop_weight.d_blades"])
+    model.connect("d_blades_prop", ["hoverpropeller.d_blades","compute_prop_weight.d_blades"])
 
-    model.connect("n_fans", "compute_fan_weight.n_prplsrs")
+    model.connect("num_ducts", "compute_fan_weight.n_prplsrs")
 
     model.connect("k_fan", "compute_fan_weight.k_prplsr")
-    model.connect("n_fan_blades", "compute_fan_weight.n_blades")
+    model.connect("n_blades_fan", "compute_fan_weight.n_blades")
 
-    model.connect("d_fan_blades", ["compute_fan_weight.d_blades","cruisemaxpow.d_blades","cruisemaxeff.d_blades"])
+    model.connect("d_blades_duct", ["compute_fan_weight.d_blades","cruisemaxpow.d_blades","cruisemaxeff.d_blades"])
 
     model.connect("d_fan_hub", ["cruisemaxpow.d_hub","cruisemaxeff.d_hub"])
 

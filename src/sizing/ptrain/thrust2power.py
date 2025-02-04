@@ -26,7 +26,7 @@ class ThrustPowerGroup(om.Group):
 
         self.add_subsystem('thrust_dist', ThrustDistribution(N=N),
                           promotes_inputs=['thrust_required', 'thrust_ratio',
-                                         'num_pods', 'num_fans'])
+                                         'num_pods', 'num_ducts'])
 
         # Add propulsion components
         self.add_subsystem('ductedfan', ComputeDuctedFan(N=N),
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     ivc.add_output('thrust_required', val=np.linspace(8600 * 9.806 /17, 8600 * 9.806 /18, N), units='N', desc='Total thrust required')
     ivc.add_output('thrust_ratio', val=0.5 * np.ones(N), desc='Ratio of thrust between ray and manta')
     ivc.add_output('num_pods', val=2, desc='Number of ray propulsors')
-    ivc.add_output('num_fans', val=2, desc='Number of manta propulsors')
+    ivc.add_output('num_ducts', val=2, desc='Number of manta propulsors')
     ivc.add_output('rho', val=1.225 * np.ones(N), units='kg/m**3', desc='Air density')
     ivc.add_output('u', val=100.0 * np.ones(N), units='m/s', desc='Airspeed')
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     prob.model.connect('eta_fan', 'ductedfan.eta_fan')
     prob.model.connect('eta_duct', 'ductedfan.eta_duct')
     prob.model.connect('num_pods', 'propeller.n_motors')
-    prob.model.connect('num_fans', 'ductedfan.n_fans')
+    prob.model.connect('num_ducts', 'ductedfan.num_ducts')
     prob.model.connect('epsilon_r', 'ductedfan.epsilon_r')
     
 

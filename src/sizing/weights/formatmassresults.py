@@ -52,11 +52,12 @@ class FormatMassResults:
         # Sort categories by value while keeping labels and values paired
         def alternate_sort(d):
             # Sort items by value
-            items = sorted(d.items(), key=lambda_wx: x[1], reverse=True)
+            items = sorted(d.items(), key=lambda x: x[1], reverse=True)
             n = len(items)
             result = []
             # Alternate between largest and smallest
             for i in range((n + 1) // 2):
+
                 result.append(items[i])  # Add from front
                 if i + (n//2) < n:
                     result.append(items[-(i + 1)])  # Add from back
