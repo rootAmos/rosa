@@ -828,7 +828,7 @@ if __name__ == "__main__":
     print(f"Ray Unit Power: {prob['p_shaft_ray_climb'][0]/1000:.0f} kW")
     print(f"\nRange: {prob['cruise.range'][0]/1000:.0f} km")
 
-    print(f"Duration (min): {prob['duration'][0]/60:.0f}")
+    print(f"Climb Duration (min): {prob['duration'][0]/60:.0f}")
 
     import pdb
     #pdb.set_trace()
