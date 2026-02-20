@@ -1,0 +1,5 @@
+numpy
+scipy
+matplotlib
+openmdao==3.42.0
+om-pycycle @ git+https://github.com/OpenMDAO/pyCycle.git

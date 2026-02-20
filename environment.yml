@@ -1,0 +1,13 @@
+name: cumulus
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - matplotlib
+  - pip
+  - pip:
+    - openmdao==3.42.0
+    - git+https://github.com/OpenMDAO/pyCycle.git
